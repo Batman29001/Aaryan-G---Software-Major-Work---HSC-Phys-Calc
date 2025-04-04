@@ -7,23 +7,27 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.animation import FuncAnimation
 import numpy as np
 from core.kinematics import solve_kinematics
+from PyQt6.QtGui import QFont, QColor
+from matplotlib.patches import ArrowStyle
 
 class KinematicsTab(QWidget):
     def __init__(self):
         super().__init__()
-        self.dark_mode = False
+        self.dark_mode = False  # Start in light mode (for plot only)
         self.last_result = None
+        self.inputs = {}
+        self.unit_combos = {}
         self.initUI()
-        
+
     def initUI(self):
-        main_layout = QHBoxLayout()
+        # Main layout - set directly on the widget
+        main_layout = QHBoxLayout(self)
         
-        # Input Panel
+        # Input Panel - ALWAYS DARK
         input_panel = QGroupBox("Kinematics Calculator")
         input_layout = QFormLayout()
         
         # Create input fields with units
-        self.inputs = {}
         units = {
             'u': ["m/s", "km/h", "ft/s"],
             'v': ["m/s", "km/h", "ft/s"],
@@ -31,28 +35,38 @@ class KinematicsTab(QWidget):
             's': ["m", "km", "ft"],
             't': ["s", "min", "h"]
         }
-        
-        for var, label in [('u',"Initial velocity"), ('v',"Final velocity"), 
-                          ('a',"Acceleration"), ('s',"Displacement"), ('t',"Time")]:
+
+        # Physics symbols for labels
+        symbols = {
+            'u': "v₀ (Initial velocity)",
+            'v': "v (Final velocity)",
+            'a': "a (Acceleration)",
+            's': "Δx (Displacement)",
+            't': "t (Time)"
+        }
+
+        for var in ['u', 'v', 'a', 's', 't']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))
             hbox = QHBoxLayout()
             hbox.addWidget(self.inputs[var])
             hbox.addWidget(unit_combo)
-            input_layout.addRow(f"{label}:", hbox)
+            input_layout.addRow(symbols[var], hbox)
+            self.unit_combos[var] = unit_combo
 
         # Buttons
         self.calculate_btn = QPushButton("🚀 Calculate")
-        self.clear_btn = QPushButton("🧹 Clear")
-        self.plot_btn = QPushButton("📈 Plot Motion")
-        self.theme_btn = QPushButton("🌙 Dark Mode")
+        self.clear_btn = QPushButton("🔄 Reset")
+        self.plot_btn = QPushButton("📊 Motion Graphs")
+        self.theme_btn = QPushButton("🌙 Toggle Plot Theme")
         
-        # Connect buttons
-        self.calculate_btn.clicked.connect(self.calculate)
-        self.clear_btn.clicked.connect(self.clear_fields)
-        self.plot_btn.clicked.connect(self.plot_motion)
-        self.theme_btn.clicked.connect(self.toggle_theme)
+        # Button layout
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.calculate_btn)
+        button_layout.addWidget(self.clear_btn)
+        button_layout.addWidget(self.plot_btn)
+        button_layout.addWidget(self.theme_btn)
         
         # Results display
         self.result_display = QLabel("Results will appear here...")
@@ -60,51 +74,112 @@ class KinematicsTab(QWidget):
         self.result_display.setWordWrap(True)
         self.formula_label = QLabel("Used formula: -")
         
-        # Add widgets
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.calculate_btn)
-        button_layout.addWidget(self.clear_btn)
-        button_layout.addWidget(self.plot_btn)
-        button_layout.addWidget(self.theme_btn)
-        
+        # Add widgets to input layout
         input_layout.addRow(button_layout)
         input_layout.addRow(self.formula_label)
         input_layout.addRow(self.result_display)
+        
+        # Set layout for input panel
         input_panel.setLayout(input_layout)
         
-        # Plot area
+        # Plot area - will toggle between light/dark
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
         
-        # Final layout
+        # Add to main layout
         main_layout.addWidget(input_panel, 1)
         main_layout.addWidget(self.canvas, 1)
-        self.setLayout(main_layout)
+        
+        # Apply styling and connect signals
+        self.apply_style()
+        self.connect_signals()
     
-    def toggle_theme(self):
-        self.dark_mode = not self.dark_mode
+    def apply_style(self):
+        """Apply dark mode to input area and initialize plot theme"""
+        # Permanent dark styling for input area
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #222222;
+                color: #EEEEEE;
+                font-family: Segoe UI, Arial;
+            }
+            QGroupBox {
+                font: bold 14px;
+                border: 2px solid #3A7CA5;
+                border-radius: 5px;
+                margin-top: 1ex;
+                background-color: #333333;
+                padding-top: 12px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+                color: #3A7CA5;
+            }
+            QPushButton {
+                background-color: #3A7CA5;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #2F6690;
+            }
+            QLineEdit, QComboBox {
+                border: 1px solid #3A7CA5;
+                padding: 5px;
+                border-radius: 3px;
+                background-color: #444444;
+                color: white;
+                selection-background-color: #3A7CA5;
+            }
+            QLabel {
+                color: #EEEEEE;
+                font-size: 13px;
+            }
+        """)
+        
+        # Initialize plot with light mode
+        self.update_plot_theme()
+    
+    def update_plot_theme(self):
+        """Only update the plot colors based on current theme"""
         if self.dark_mode:
-            self.setStyleSheet("""
-                QWidget { background-color: #333; color: #EEE; }
-                QLineEdit, QComboBox { background-color: #555; color: #FFF; }
-                QPushButton { background-color: #666; }
-                QLabel { color: #EEE; }
-            """)
-            self.theme_btn.setText("☀️ Light Mode")
-            self.ax.set_facecolor('#444')
-            self.figure.set_facecolor('#333')
-            for text in self.ax.texts + [self.ax.title, self.ax.xaxis.label, self.ax.yaxis.label]:
-                text.set_color('white')
+            # Dark plot styling
+            self.ax.set_facecolor('#2F2F2F')
+            self.figure.set_facecolor('#2F2F2F')
+            for text in [self.ax.title, self.ax.xaxis.label, self.ax.yaxis.label] + self.ax.texts:
+                text.set_color('#EEEEEE')
+            self.ax.grid(color='#444444')
         else:
-            self.setStyleSheet("")
-            self.theme_btn.setText("🌙 Dark Mode")
-            self.ax.set_facecolor('white')
-            self.figure.set_facecolor('white')
-            for text in self.ax.texts + [self.ax.title, self.ax.xaxis.label, self.ax.yaxis.label]:
-                text.set_color('black')
+            # Light plot styling
+            self.ax.set_facecolor('#F8F9FA')
+            self.figure.set_facecolor('#F8F9FA')
+            for text in [self.ax.title, self.ax.xaxis.label, self.ax.yaxis.label] + self.ax.texts:
+                text.set_color('#333333')
+            self.ax.grid(color='#DDDDDD')
+        
         self.canvas.draw()
     
+    def connect_signals(self):
+        """Connect all button signals"""
+        self.calculate_btn.clicked.connect(self.calculate)
+        self.clear_btn.clicked.connect(self.clear_fields)
+        self.plot_btn.clicked.connect(self.plot_motion)
+        self.theme_btn.clicked.connect(self.toggle_theme)
+    
+    def toggle_theme(self):
+        """Toggle only the plot theme"""
+        self.dark_mode = not self.dark_mode
+        self.theme_btn.setText("☀️ Light Plot" if self.dark_mode else "🌙 Dark Plot")
+        self.update_plot_theme()
+    
     def get_input_values(self):
+        """Get values from input fields, return None if empty"""
         values = {}
         for var, field in self.inputs.items():
             text = field.text().strip()
@@ -115,37 +190,34 @@ class KinematicsTab(QWidget):
         return values
     
     def calculate(self):
+        """Perform kinematics calculation"""
         values = self.get_input_values()
         provided = sum(1 for v in values.values() if v is not None)
-    
+        
         if provided < 3:
             QMessageBox.warning(self, "Insufficient Data", 
-                          "At least 3 variables are required!")
+                              "At least 3 variables are required!")
             return
-    
+        
         result = solve_kinematics(**values)
         self.last_result = result
-    
+        
         # Display results
         result_text = "📊 Results:\n"
         for var, val in result.items():
             if val is None:
                 result_text += f"• {var}: ❓ (missing data)\n"
             else:
-                try:
-                    result_text += f"• {var}: {float(val):.3f}\n"
-                except (TypeError, ValueError):
-                    result_text += f"• {var}: {val}\n"
+                result_text += f"• {var}: {val:.3f}\n"
         
-            self.result_display.setText(result_text)
-            
-            # Determine which formula was used
-            formula_text = self.determine_used_formula(result, values)
-            self.formula_label.setText(f"Used formula: {formula_text}")
-
+        self.result_display.setText(result_text)
+        
+        # Determine which formula was used
+        formula_text = self.determine_used_formula(result, values)
+        self.formula_label.setText(f"Used formula: {formula_text}")
+    
     def determine_used_formula(self, result, original_inputs):
         """Simple heuristic to determine which formula was likely used"""
-        # This is a simplified version - you can expand it based on your needs
         if result['v'] is not None and original_inputs.get('v') is None:
             if all(k in original_inputs for k in ['u', 'a', 't']):
                 return "v = u + a·t"
@@ -155,53 +227,82 @@ class KinematicsTab(QWidget):
         return "Multiple steps used"
     
     def clear_fields(self):
+        """Clear all input fields and results"""
         for field in self.inputs.values():
             field.clear()
         self.result_display.setText("Results will appear here...")
         self.formula_label.setText("Used formula: -")
         self.ax.clear()
-        self.canvas.draw()
+        self.update_plot_theme()  # Reapply theme after clear
     
     def plot_motion(self):
+        """Plot the motion based on available data"""
         if not hasattr(self, 'last_result') or not self.last_result:
-            QMessageBox.warning(self, "No Data", "Please calculate first before plotting!")
+            QMessageBox.warning(self, "No Data", 
+                               "Please calculate first before plotting.")
             return
             
         result = self.last_result
         required = ['u', 'a', 't']
         if any(result.get(k) is None for k in required):
-            QMessageBox.warning(self, "Missing Data", "Need u, a, and t to plot motion!")
+            QMessageBox.warning(self, "Missing Data", 
+                               "Need u, a, and t to plot motion.")
             return
             
         u, a, t = result['u'], result['a'], result['t']
         
         # Handle case where time is zero or very small
-        if t <= 0.001:  # Threshold for "zero" time
-            QMessageBox.warning(self, "Invalid Time", "Time must be positive to plot motion!")
+        if t <= 0.001:
+            QMessageBox.warning(self, "Invalid Time", 
+                               "Time must be positive to plot motion.")
             return
         
-        # Create time array with at least 10 points
-        time_points = max(10, int(t * 10))  # Ensure enough points for plotting
+        # Create time array
+        time_points = max(10, int(t * 10))
         time = np.linspace(0, t, time_points)
         
         # Calculate position and velocity
         s = u * time + 0.5 * a * time**2
         v = u + a * time
         
-        # Clear previous plot
+        # Clear and style plot
         self.ax.clear()
+        self.update_plot_theme()  # Apply current theme
         
-        # Set dynamic axis limits with padding
-        x_padding = t * 0.1  # 10% padding
+        # Plot with physics style
+        line_s = self.ax.plot(time, s, color='#2E86AB', linewidth=2, 
+                            label='Displacement (Δx)')
+        line_v = self.ax.plot(time, v, color='#D62246', linewidth=2, 
+                            label='Velocity (v)')
+        
+        # Add motion arrows
+        if len(time) > 1:
+            arrow_props = dict(
+                arrowstyle=ArrowStyle.CurveFilledB(head_length=0.4, head_width=0.2),
+                color='#2E86AB', linewidth=0
+            )
+            self.ax.annotate('', xy=(time[-1], s[-1]), 
+                           xytext=(time[-2], s[-2]),
+                           arrowprops=arrow_props)
+            
+            arrow_props['color'] = '#D62246'
+            self.ax.annotate('', xy=(time[-1], v[-1]), 
+                           xytext=(time[-2], v[-2]),
+                           arrowprops=arrow_props)
+        
+        # Physics-style annotations
+        self.ax.text(0.02, 0.95, f"a = {a:.2f} m/s²", transform=self.ax.transAxes,
+                    bbox=dict(facecolor='white' if not self.dark_mode else '#444444',
+                             alpha=0.8, 
+                             edgecolor='none'))
+        
+        # Set dynamic axis limits
+        x_padding = t * 0.1
         y_min = min(min(s), min(v)) - 1
         y_max = max(max(s), max(v)) + 1
         
         self.ax.set_xlim(0 - x_padding, t + x_padding)
         self.ax.set_ylim(y_min, y_max)
-        
-        # Plot curves
-        self.ax.plot(time, s, 'b', label='Displacement (s)')
-        self.ax.plot(time, v, 'r', label='Velocity (v)')
         
         # Add labels and legend
         self.ax.set_xlabel('Time (s)')
@@ -209,11 +310,5 @@ class KinematicsTab(QWidget):
         self.ax.set_title('Motion Graphs')
         self.ax.legend()
         self.ax.grid(True)
-        
-        # Apply dark mode if active
-        if hasattr(self, 'dark_mode') and self.dark_mode:
-            self.ax.set_facecolor('#444')
-            for text in [self.ax.title, self.ax.xaxis.label, self.ax.yaxis.label]:
-                text.set_color('white')
         
         self.canvas.draw()
