@@ -21,7 +21,31 @@ class KinematicsTab(QWidget):
 
     def initUI(self):
         # Main layout - set directly on the widget
-        main_layout = QHBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        
+        # Create return button
+        return_btn = QPushButton("← Return to Main Menu")
+        return_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #444444;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                font-size: 14px;
+                margin: 10px;
+            }
+            QPushButton:hover {
+                background-color: #555555;
+            }
+        """)
+        main_layout.addWidget(return_btn)
+        
+        # Connect return button
+        return_btn.clicked.connect(self.return_to_menu)
+        
+        # Calculator layout
+        calculator_layout = QHBoxLayout()
         
         # Input Panel - ALWAYS DARK
         input_panel = QGroupBox("Kinematics Calculator")
@@ -86,13 +110,20 @@ class KinematicsTab(QWidget):
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
         
-        # Add to main layout
-        main_layout.addWidget(input_panel, 1)
-        main_layout.addWidget(self.canvas, 1)
+        # Add to calculator layout
+        calculator_layout.addWidget(input_panel, 1)
+        calculator_layout.addWidget(self.canvas, 1)
+        
+        # Add calculator layout to main layout
+        main_layout.addLayout(calculator_layout)
         
         # Apply styling and connect signals
         self.apply_style()
         self.connect_signals()
+    
+    def return_to_menu(self):
+        """Return to the main menu"""
+        self.parent().parent().return_to_menu()
     
     def apply_style(self):
         """Apply dark mode to input area and initialize plot theme"""
@@ -232,12 +263,13 @@ class KinematicsTab(QWidget):
             field.clear()
         self.result_display.setText("Results will appear here...")
         self.formula_label.setText("Used formula: -")
+        self.last_result = None
         self.ax.clear()
         self.update_plot_theme()  # Reapply theme after clear
     
     def plot_motion(self):
         """Plot the motion based on available data"""
-        if not hasattr(self, 'last_result') or not self.last_result:
+        if not self.last_result:
             QMessageBox.warning(self, "No Data", 
                                "Please calculate first before plotting.")
             return
