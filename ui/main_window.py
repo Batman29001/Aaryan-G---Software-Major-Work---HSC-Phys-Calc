@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QWidget, QVBoxLayout, Q
 from PyQt6.QtCore import Qt
 from ui.kinematics_tab import KinematicsTab
 from ui.dynamics_tab import DynamicsTab
-from ui.waves_tab import WavesTab  # Add this import
+from ui.waves_tab import WavesTab  
 
 class MainMenu(QWidget):
     def __init__(self, parent=None):
