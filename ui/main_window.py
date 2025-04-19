@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QWidget, QVBoxLayout, Q
 from PyQt6.QtCore import Qt
 from ui.kinematics_tab import KinematicsTab
 from ui.dynamics_tab import DynamicsTab
+from ui.waves_tab import WavesTab  # Add this import
 
 class MainMenu(QWidget):
     def __init__(self, parent=None):
@@ -20,6 +21,7 @@ class MainMenu(QWidget):
         # Calculator buttons
         self.kinematics_btn = QPushButton("Kinematics Calculator")
         self.dynamics_btn = QPushButton("Dynamics Calculator")
+        self.waves_btn = QPushButton("Waves Calculator")  
         
         # Style buttons
         button_style = """
@@ -39,9 +41,11 @@ class MainMenu(QWidget):
         """
         self.kinematics_btn.setStyleSheet(button_style)
         self.dynamics_btn.setStyleSheet(button_style)
+        self.waves_btn.setStyleSheet(button_style)  
         
         layout.addWidget(self.kinematics_btn)
         layout.addWidget(self.dynamics_btn)
+        layout.addWidget(self.waves_btn)  
         layout.addStretch()
         
         self.setLayout(layout)
@@ -61,15 +65,18 @@ class PhysicsCalculator(QMainWindow):
         # Create calculator tabs
         self.kinematics_tab = KinematicsTab()
         self.dynamics_tab = DynamicsTab()
+        self.waves_tab = WavesTab()  
         
         # Add all widgets to stacked widget
         self.stacked_widget.addWidget(self.main_menu)
         self.stacked_widget.addWidget(self.kinematics_tab)
         self.stacked_widget.addWidget(self.dynamics_tab)
+        self.stacked_widget.addWidget(self.waves_tab) 
         
         # Connect menu buttons to switch views
         self.main_menu.kinematics_btn.clicked.connect(lambda: self.switch_to_calculator(1))
         self.main_menu.dynamics_btn.clicked.connect(lambda: self.switch_to_calculator(2))
+        self.main_menu.waves_btn.clicked.connect(lambda: self.switch_to_calculator(3))  
         
         # Set central widget
         self.setCentralWidget(self.stacked_widget)
