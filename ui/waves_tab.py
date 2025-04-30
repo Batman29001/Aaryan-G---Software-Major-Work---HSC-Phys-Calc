@@ -438,7 +438,8 @@ class LightPropertiesTab(BaseWaveTab):
         n1, n2, θ1 = result['n1'], result['n2'], result['θ1']
         
         # Calculate θ2 if not provided
-        if result.get('θ2') is None:
+        θ2 = result.get('θ2')
+        if θ2 is None:
             try:
                 θ2 = math.degrees(math.asin((n1 * math.sin(math.radians(θ1))) / n2))
             except:
@@ -453,20 +454,25 @@ class LightPropertiesTab(BaseWaveTab):
         self.ax.text(0.5, 0.02, f"n₁ = {n1:.2f}", ha='center', transform=self.ax.transAxes)
         self.ax.text(0.5, -0.08, f"n₂ = {n2:.2f}", ha='center', transform=self.ax.transAxes)
         
-        # Draw incident ray
-        x = np.linspace(-1, 0, 100)
-        y = np.tan(math.radians(θ1)) * x
-        self.ax.plot(x, y, 'r-', linewidth=2, label=f'Incident (θ₁={θ1:.1f}°)')
+        # Draw incident ray (red)
+        x_incident = np.linspace(-1, 0, 100)
+        y_incident = np.tan(math.radians(θ1)) * x_incident
+        self.ax.plot(x_incident, y_incident, 'r-', linewidth=2, label=f'Incident (θ₁={θ1:.1f}°)')
         
-        # Draw refracted ray
+        # Draw refracted ray (blue) - FIXED DIRECTION
         if abs((n1 * math.sin(math.radians(θ1))) / n2) <= 1:  # No total internal reflection
-            x = np.linspace(0, 1, 100)
-            y = -np.tan(math.radians(θ2)) * x
-            self.ax.plot(x, y, 'b-', linewidth=2, label=f'Refracted (θ₂={θ2:.1f}°)')
+            x_refracted = np.linspace(0, 1, 100)
+            # Changed from -tan to +tan to maintain direction
+            y_refracted = np.tan(math.radians(θ2)) * x_refracted
+            self.ax.plot(x_refracted, y_refracted, 'b-', linewidth=2, label=f'Refracted (θ₂={θ2:.1f}°)')
         else:
+            # Draw reflected ray (green) for total internal reflection
+            x_reflected = np.linspace(0, -1, 100)
+            y_reflected = -np.tan(math.radians(θ1)) * x_reflected
+            self.ax.plot(x_reflected, y_reflected, 'g-', linewidth=2, label='Reflected (Total Internal)')
             self.ax.text(0.5, 0.5, "Total Internal Reflection", ha='center', 
                         bbox=dict(facecolor='white' if not self.dark_mode else '#444444',
-                                 alpha=0.8, edgecolor='none'))
+                                alpha=0.8, edgecolor='none'))
         
         # Draw normal
         self.ax.axvline(0, color='k', linestyle='--', linewidth=0.5)
