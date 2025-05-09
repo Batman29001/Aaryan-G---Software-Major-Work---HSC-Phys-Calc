@@ -20,15 +20,12 @@ class EMSolver:
         # Initialize all possible variables with None
         self.solutions = {
             # Electrostatics
-            'F': None, 'q1': None, 'q2': None, 'r': None, 'E': None, 'V': None, 'd': None,
-            'U': None, 'W': None,
+            'F': None, 'q': None, 'E': None, 'V': None, 'd': None, 'U': None, 'W': None,
             # Circuits
             'I': None, 'V_circuit': None, 'R': None, 'P': None, 'E_energy': None, 't': None,
             'R_series': None, 'R_parallel': None, 'R1': None, 'R2': None,
             # Magnetism
-            'B': None, 'I_wire': None, 'r_wire': None, 'N': None, 'L': None, 'F_mag': None,
-            'l': None, 'θ_mag': None, 'Φ': None, 'A': None, 'θ_flux': None, 'ε': None,
-            'Δt': None
+            'B': None, 'I_wire': None, 'r_wire': None, 'N': None, 'L': None, 'type': None
         }
         
         # Set provided values
@@ -51,41 +48,22 @@ class EMSolver:
         """Solve electrostatics equations"""
         changed = False
         
-        # Coulomb's Law: F = (1/(4πε₀)) * (q1*q2)/r²
+        # Force on charge: F = qE
         if self.solutions['F'] is None:
-            if all(k in self.solutions and self.solutions[k] is not None 
-                 for k in ['q1', 'q2', 'r']):
-                self.solutions['F'] = (1/(4*math.pi*self.permittivity)) * (
-                    (self.solutions['q1'] * self.solutions['q2']) / (self.solutions['r']**2))
+            if self.solutions['q'] is not None and self.solutions['E'] is not None:
+                self.solutions['F'] = self.solutions['q'] * self.solutions['E']
                 changed = True
         
-        # Electric field: E = F/q or E = V/d
+        # Electric field: E = V/d
         if self.solutions['E'] is None:
-            if self.solutions['F'] is not None and self.solutions['q1'] is not None:
-                self.solutions['E'] = self.solutions['F'] / self.solutions['q1']
-                changed = True
-            elif self.solutions['V'] is not None and self.solutions['d'] is not None:
+            if self.solutions['V'] is not None and self.solutions['d'] is not None:
                 self.solutions['E'] = self.solutions['V'] / self.solutions['d']
                 changed = True
         
-        # Potential energy: U = qV or U = k(q1q2)/r
-        if self.solutions['U'] is None:
-            if self.solutions['q1'] is not None and self.solutions['V'] is not None:
-                self.solutions['U'] = self.solutions['q1'] * self.solutions['V']
-                changed = True
-            elif all(k in self.solutions and self.solutions[k] is not None 
-                     for k in ['q1', 'q2', 'r']):
-                self.solutions['U'] = (1/(4*math.pi*self.permittivity)) * (
-                    (self.solutions['q1'] * self.solutions['q2']) / self.solutions['r'])
-                changed = True
-        
-        # Work done: W = qV = Fd = ΔU
-        if self.solutions['W'] is None:
-            if self.solutions['q1'] is not None and self.solutions['V'] is not None:
-                self.solutions['W'] = self.solutions['q1'] * self.solutions['V']
-                changed = True
-            elif self.solutions['F'] is not None and self.solutions['d'] is not None:
-                self.solutions['W'] = self.solutions['F'] * self.solutions['d']
+        # Potential difference: V = Ed
+        if self.solutions['V'] is None:
+            if self.solutions['E'] is not None and self.solutions['d'] is not None:
+                self.solutions['V'] = self.solutions['E'] * self.solutions['d']
                 changed = True
         
         return changed
@@ -133,14 +111,14 @@ class EMSolver:
                     self.solutions['V_circuit'] * self.solutions['I'] * self.solutions['t'])
                 changed = True
         
-        # Series resistance: R_series = R1 + R2 + ...
+        # Series resistance: R_series = R1 + R2
         if self.solutions['R_series'] is None:
             if all(k in self.solutions and self.solutions[k] is not None 
                      for k in ['R1', 'R2']):
                 self.solutions['R_series'] = self.solutions['R1'] + self.solutions['R2']
                 changed = True
         
-        # Parallel resistance: 1/R_parallel = 1/R1 + 1/R2 + ...
+        # Parallel resistance: 1/R_parallel = 1/R1 + 1/R2
         if self.solutions['R_parallel'] is None:
             if all(k in self.solutions and self.solutions[k] is not None 
                      for k in ['R1', 'R2']):
@@ -151,22 +129,34 @@ class EMSolver:
     
     def _solve_magnetism(self) -> bool:
         changed = False
-        
-        # Straight wire case (requires r_wire)
-        if self.solutions.get('r_wire') is not None:
-            if all(self.solutions.get(k) is not None for k in ['I_wire', 'r_wire']):
+    
+        # Straight wire case
+        if self.solutions.get('r_wire') is not None and self.solutions.get('I_wire') is not None:
+            if self.solutions.get('B') is None:
                 self.solutions['B'] = (self.permeability * self.solutions['I_wire']) / \
                                     (2 * math.pi * self.solutions['r_wire'])
+                self.solutions['type'] = 'straight_wire'
+                changed = True
+            elif self.solutions.get('I_wire') is None and self.solutions.get('B') is not None:
+                self.solutions['I_wire'] = (self.solutions['B'] * 2 * math.pi * self.solutions['r_wire']) / \
+                                        self.permeability
+                self.solutions['type'] = 'straight_wire'
                 changed = True
         
-        # Solenoid case (requires BOTH N and L)
-        elif self.solutions.get('N') is not None:
-            if all(self.solutions.get(k) is not None for k in ['I_wire', 'N', 'L']):
+        # Solenoid case
+        elif self.solutions.get('N') is not None and self.solutions.get('L') is not None:
+            if self.solutions.get('B') is None and self.solutions.get('I_wire') is not None:
                 self.solutions['B'] = (self.permeability * self.solutions['N'] * \
                                     self.solutions['I_wire']) / self.solutions['L']
+                self.solutions['type'] = 'solenoid'
                 changed = True
-        
-        return changed
+            elif self.solutions.get('I_wire') is None and self.solutions.get('B') is not None:
+                self.solutions['I_wire'] = (self.solutions['B'] * self.solutions['L']) / \
+                                        (self.permeability * self.solutions['N'])
+                self.solutions['type'] = 'solenoid'
+                changed = True
+    
+            return changed
 
 def solve_electrostatics(**kwargs) -> Dict[str, float]:
     """Convenience function for electrostatics"""
@@ -179,9 +169,6 @@ def solve_circuits(**kwargs) -> Dict[str, float]:
     return solver.solve('circuits', **kwargs)
 
 def solve_magnetism(**kwargs) -> Dict[str, float]:
-    """Convenience function for magnetism (simplified version without EMF/flux)"""
+    """Convenience function for magnetism"""
     solver = EMSolver()
-    # Only allow the simplified set of variables
-    allowed_vars = {'B', 'I_wire', 'r_wire', 'N', 'L', 'F_mag', 'l'}
-    filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed_vars}
-    return solver.solve('magnetism', **filtered_kwargs)
+    return solver.solve('magnetism', **kwargs)

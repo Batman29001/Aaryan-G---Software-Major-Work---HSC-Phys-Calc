@@ -205,26 +205,26 @@ class ElectrostaticsTab(BaseEMTab):
     
     def calculate(self):
         values = self.get_input_values()
+        
+        # Convert units
+        if values['q'] is not None:
+            if self.unit_combos['q'].currentText() == "μC":
+                values['q'] *= 1e-6
+            elif self.unit_combos['q'].currentText() == "nC":
+                values['q'] *= 1e-9
+                
+        if values['d'] is not None and self.unit_combos['d'].currentText() == "cm":
+            values['d'] *= 0.01
+        
         try:
-            # Calculate missing values
-            if values['F'] is None and values['q'] is not None and values['E'] is not None:
-                values['F'] = values['q'] * values['E']
+            result = solve_electrostatics(**values)
+            self.last_result = result
             
-            if values['E'] is None and values['V'] is not None and values['d'] is not None:
-                values['E'] = values['V'] / values['d']
-                if values['q'] is not None and values['F'] is None:
-                    values['F'] = values['q'] * values['E']
-            
-            if values['V'] is None and values['E'] is not None and values['d'] is not None:
-                values['V'] = values['E'] * values['d']
-            
-            self.last_result = values
-            
-            # Simple, clean results display
+            # Display results
             result_text = "📊 Results:\n"
-            for var in ['q', 'E', 'F', 'V', 'd']:
-                if values[var] is not None:
-                    result_text += f"• {var}: {values[var]:.3e}\n"
+            for var, val in result.items():
+                if val is not None:
+                    result_text += f"• {var}: {val:.3e}\n"
             
             self.result_display.setText(result_text)
             
@@ -244,7 +244,7 @@ class ElectrostaticsTab(BaseEMTab):
         
         q = result['q']
         E = result['E']
-        F = result.get('F', q * E)  # Use calculated F if available, else calculate
+        F = result.get('F', q * E)
         
         # Clear and style plot
         self.ax.clear()
@@ -332,10 +332,34 @@ class CircuitsTab(BaseEMTab):
     
     def calculate(self):
         values = self.get_input_values()
+        
+        # Convert units
+        if values['I'] is not None and self.unit_combos['I'].currentText() == "mA":
+            values['I'] *= 0.001
+            
+        if values['R'] is not None and self.unit_combos['R'].currentText() == "kΩ":
+            values['R'] *= 1000
+            
+        if values['P'] is not None and self.unit_combos['P'].currentText() == "mW":
+            values['P'] *= 0.001
+            
+        if values['E_energy'] is not None and self.unit_combos['E_energy'].currentText() == "kWh":
+            values['E_energy'] *= 3.6e6
+            
+        if values['t'] is not None and self.unit_combos['t'].currentText() == "h":
+            values['t'] *= 3600
+            
+        if values['R1'] is not None and self.unit_combos['R1'].currentText() == "kΩ":
+            values['R1'] *= 1000
+            
+        if values['R2'] is not None and self.unit_combos['R2'].currentText() == "kΩ":
+            values['R2'] *= 1000
+        
         try:
             result = solve_circuits(**values)
             self.last_result = result
             
+            # Display results
             result_text = "📊 Results:\n"
             for var, val in result.items():
                 if val is not None:
@@ -400,53 +424,39 @@ class CircuitsTab(BaseEMTab):
 class MagnetismTab(BaseEMTab):
     def __init__(self, parent=None):
         super().__init__("Magnetism Calculator", parent)
-        self.permeability = 4 * math.pi * 1e-7  # μ₀ in N/A²
-        self.setup_connections()
+        self.inputs = {}  # Initialize inputs dictionary first
+        self.unit_combos = {}
+        self.initUI()  # This will call create_input_fields()
+        self.setup_connections()  # Inputs exist when we set up connections
     
     def setup_connections(self):
         """Safe connection of signals"""
         try:
-            self.calculate_btn.clicked.connect(self.safe_calculate)
-            self.plot_btn.clicked.connect(self.safe_plot)
-            self.inputs['r_wire'].textChanged.connect(self.enforce_straight_wire_rules)
-            self.inputs['N'].textChanged.connect(self.enforce_solenoid_rules)
+            self.calculate_btn.clicked.connect(self.calculate)
+            self.plot_btn.clicked.connect(self.plot)
+            if 'r_wire' in self.inputs:  # Check if input exists before connecting
+                self.inputs['r_wire'].textChanged.connect(self.enforce_input_rules)
+            if 'N' in self.inputs:
+                self.inputs['N'].textChanged.connect(self.enforce_input_rules)
         except Exception as e:
             print(f"Connection error: {e}")
-
-    def enforce_straight_wire_rules(self):
-        """When r_wire is entered, disable N"""
-        has_r = bool(self.inputs['r_wire'].text().strip())
-        self.inputs['N'].setDisabled(has_r)
-        if has_r:
-            self.inputs['N'].clear()
-
-    def enforce_solenoid_rules(self):
-        """When N is entered, disable r_wire but keep L enabled"""
-        has_N = bool(self.inputs['N'].text().strip())
-        self.inputs['r_wire'].setDisabled(has_N)
-        if has_N:
-            self.inputs['r_wire'].clear()
-        self.inputs['L'].setEnabled(True)  # Always enable L
 
     def create_input_fields(self, layout):
         units = {
             'I_wire': ["A", "mA"],
-            'r_wire': ["m", "cm"],  # Only for straight wire
-            'N': ["turns"],         # Only for solenoid
-            'L': ["m", "cm"],       # For both cases
+            'r_wire': ["m", "cm"],
+            'N': ["turns"],
+            'L': ["m", "cm"],
             'B': ["T", "mT"]
         }
         
         symbols = {
             'I_wire': "I (Current)",
-            'r_wire': "r (Distance from wire) - straight wire only",
-            'N': "N (Number of turns) - solenoid only",
-            'L': "L (Length) - required for both",
+            'r_wire': "r (Distance from wire)",
+            'N': "N (Number of turns)",
+            'L': "L (Length)",
             'B': "B (Magnetic field)"
         }
-        
-        self.inputs = {}
-        self.unit_combos = {}
         
         for var in ['I_wire', 'r_wire', 'N', 'L', 'B']:
             self.inputs[var] = QLineEdit()
@@ -458,76 +468,83 @@ class MagnetismTab(BaseEMTab):
             layout.addRow(symbols[var], hbox)
             self.unit_combos[var] = unit_combo
 
-    def calculate(self):
-        values = self.get_input_values()
+    def enforce_input_rules(self):
+        """When either r_wire or N is entered, disable the other"""
+        has_r = bool(self.inputs['r_wire'].text().strip())
+        has_N = bool(self.inputs['N'].text().strip())
         
-        # Input validation
-        if not values['I_wire']:
-            raise ValueError("Current (I) is required")
-            
-        # Straight wire case
-        if values['r_wire']:
-            if not values['r_wire'] > 0:
-                raise ValueError("Distance from wire must be positive")
-            result = self.calculate_straight_wire(values)
-        
-        # Solenoid case
-        elif values['N']:
-            if not values['L']:
-                raise ValueError("Length (L) is required for solenoids")
-            if not (values['N'] > 0 and values['L'] > 0):
-                raise ValueError("Turns and length must be positive")
-            result = self.calculate_solenoid(values)
-        
+        if has_r:
+            self.inputs['N'].setEnabled(False)
+            self.inputs['L'].setEnabled(False)
+        elif has_N:
+            self.inputs['r_wire'].setEnabled(False)
         else:
-            raise ValueError("Either r_wire or N must be specified")
+            self.inputs['r_wire'].setEnabled(True)
+            self.inputs['N'].setEnabled(True)
+            self.inputs['L'].setEnabled(True)
+
+    def calculate(self):
+        try:
+            values = self.get_input_values()
+            
+            # Validate inputs
+            if values['I_wire'] is None:
+                QMessageBox.warning(self, "Missing Input", "Current (I) is required for all calculations")
+                return
+            
+            # Convert units
+            if values['I_wire'] is not None and self.unit_combos['I_wire'].currentText() == "mA":
+                values['I_wire'] *= 0.001
+                
+            if values['r_wire'] is not None and self.unit_combos['r_wire'].currentText() == "cm":
+                values['r_wire'] *= 0.01
+                
+            if values['L'] is not None and self.unit_combos['L'].currentText() == "cm":
+                values['L'] *= 0.01
+                
+            if values['B'] is not None and self.unit_combos['B'].currentText() == "mT":
+                values['B'] *= 0.001
+            
+            # Calculate
+            result = solve_magnetism(**values)
+            self.last_result = result
+            
+            # Display results
+            if result:
+                result_text = "📊 Results:\n"
+                for var, val in result.items():
+                    if var != 'type' and val is not None:
+                        result_text += f"• {var}: {val:.3e}\n"
+                
+                self.result_display.setText(result_text)
+            else:
+                QMessageBox.warning(self, "Calculation Failed", 
+                                  "Could not calculate with the given inputs.\n"
+                                  "Please provide either:\n"
+                                  "1. Current and distance from wire (for straight wire)\n"
+                                  "2. Current, number of turns, and length (for solenoid)")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred:\n{str(e)}")
+            print(f"Error in calculation: {e}")
         
-        self.last_result = result
-        self.display_results(result)
-
-    def calculate_straight_wire(self, values):
-        """Straight wire calculation with safety checks"""
-        try:
-            B = (self.permeability * values['I_wire']) / \
-                (2 * math.pi * values['r_wire'])
-            return {
-                'B': B,
-                'I_wire': values['I_wire'],
-                'r_wire': values['r_wire'],
-                'L': values.get('L')  # Include L if provided
-            }
-        except ZeroDivisionError:
-            raise ValueError("Distance from wire cannot be zero")
-
-    def calculate_solenoid(self, values):
-        """Solenoid calculation with safety checks"""
-        try:
-            B = (self.permeability * values['N'] * values['I_wire']) / values['L']
-            return {
-                'B': B,
-                'I_wire': values['I_wire'],
-                'N': values['N'],
-                'L': values['L']
-            }
-        except ZeroDivisionError:
-            raise ValueError("Solenoid length cannot be zero")
-
     def plot(self):
         if not self.last_result:
-            self.show_error("No results to plot. Calculate first.")
+            QMessageBox.warning(self, "No Data", "Please calculate first before plotting.")
             return
         
         try:
             self.ax.clear()
             
-            if 'r_wire' in self.last_result:
+            if self.last_result['type'] == 'straight_wire':
                 self.plot_straight_wire()
-            elif 'N' in self.last_result:
+            else:
                 self.plot_solenoid()
             
+            self.update_plot_theme()
             self.canvas.draw()
         except Exception as e:
-            self.show_error(f"Plotting error: {str(e)}")
+            QMessageBox.critical(self, "Plotting Error", f"An error occurred:\n{str(e)}")
             self.ax.clear()
             self.canvas.draw()
 
@@ -535,26 +552,30 @@ class MagnetismTab(BaseEMTab):
         """Plot straight wire with field lines"""
         I = self.last_result['I_wire']
         r = self.last_result['r_wire']
-        L = self.last_result.get('L', 1.0)  # Default length
+        L = self.last_result.get('L', 1.0)  # Default length if not provided
         
-        # Draw wire
-        self.ax.plot([0, 0], [-L/2, L/2], 'k-', linewidth=3, label='Wire')
+        # Draw wire (vertical line)
+        self.ax.plot([0, 0], [-L/2, L/2], 'k-', linewidth=3, label='Current-carrying wire')
         
-        # Draw field lines
+        # Draw circular field lines around the wire
         for y in np.linspace(-L/2, L/2, 5):
-            circle = plt.Circle((0, y), r, color='b', fill=False, alpha=0.3)
+            circle = plt.Circle((0, y), r, color='b', fill=False, alpha=0.3, 
+                              label='Magnetic field lines' if y == -L/2 else None)
             self.ax.add_artist(circle)
         
         # Add current direction indicator
-        self.ax.arrow(0, -L/2-0.5, 0, 0.3, head_width=0.2, fc='r', ec='r')
-        self.ax.text(0.2, -L/2-0.4, f"I = {I:.1f} A", color='r')
+        self.ax.arrow(0, -L/2-0.2, 0, 0.4, head_width=0.2, head_length=0.2, fc='r', ec='r')
+        self.ax.text(0.3, -L/2, f"I = {I:.1f} A", color='r')
+        
+        # Add B field strength label
+        self.ax.text(0, L/2+0.3, f"B = {self.last_result['B']:.2e} T", ha='center')
         
         # Format plot
         self.ax.set_xlim(-2*r, 2*r)
-        self.ax.set_ylim(-L-1, L+1)
+        self.ax.set_ylim(-L/2-0.5, L/2+0.5)
         self.ax.set_aspect('equal')
-        self.ax.set_title(f"Straight Wire (L={L:.2f}m)")
-        self.ax.legend()
+        self.ax.set_title('Magnetic Field Around Straight Wire')
+        self.ax.legend(loc='upper right')
         self.ax.grid(True)
 
     def plot_solenoid(self):
@@ -562,20 +583,28 @@ class MagnetismTab(BaseEMTab):
         I = self.last_result['I_wire']
         N = self.last_result['N']
         L = self.last_result['L']
+        B = self.last_result['B']
         
-        # Draw coils
-        for i, y in enumerate(np.linspace(-L/2, L/2, min(N, 20))):  # Limit to 20 coils for visibility
-            self.ax.add_artist(plt.Circle((0, y), 0.3, fill=False, color='r'))
+        # Draw solenoid coils (simplified representation)
+        coil_spacing = L / min(N, 20)  # Limit to 20 coils for visibility
+        for i in range(min(N, 20)):
+            y_pos = -L/2 + i * coil_spacing
+            self.ax.add_artist(plt.Circle((0, y_pos), 0.3, fill=False, color='r'))
         
-        # Draw uniform field
-        self.ax.arrow(0, -L/2, 0, L, head_width=0.3, fc='b', ec='b', 
-                     label=f'B = {self.last_result["B"]:.1e} T')
+        # Draw uniform field inside solenoid
+        self.ax.arrow(0, -L/2, 0, L, head_width=0.3, head_length=0.3, fc='b', ec='b',
+                     label=f'Uniform B field: {B:.2e} T')
+        
+        # Add current direction indicators
+        for i in range(3):  # Add a few current direction indicators
+            y_pos = -L/2 + i * (L/2)
+            self.ax.arrow(0.3, y_pos, 0, 0.3, head_width=0.1, head_length=0.1, fc='r', ec='r')
         
         # Format plot
         self.ax.set_xlim(-1, 1)
-        self.ax.set_ylim(-L-1, L+1)
+        self.ax.set_ylim(-L/2-0.5, L/2+0.5)
         self.ax.set_aspect('equal')
-        self.ax.set_title(f"Solenoid (N={N}, L={L:.2f}m)")
+        self.ax.set_title(f'Solenoid (N={N}, L={L:.2f}m)')
         self.ax.legend()
         self.ax.grid(True)
 
