@@ -423,23 +423,19 @@ class CircuitsTab(BaseEMTab):
 
 class MagnetismTab(BaseEMTab):
     def __init__(self, parent=None):
-        super().__init__("Magnetism Calculator", parent)
-        self.inputs = {}  # Initialize inputs dictionary first
+        self.inputs = {}  # Initialize inputs first
         self.unit_combos = {}
-        self.initUI()  # This will call create_input_fields()
-        self.setup_connections()  # Inputs exist when we set up connections
+        super().__init__("Magnetism Calculator", parent)
+        self.setup_connections()
     
     def setup_connections(self):
         """Safe connection of signals"""
-        try:
-            self.calculate_btn.clicked.connect(self.calculate)
-            self.plot_btn.clicked.connect(self.plot)
-            if 'r_wire' in self.inputs:  # Check if input exists before connecting
-                self.inputs['r_wire'].textChanged.connect(self.enforce_input_rules)
-            if 'N' in self.inputs:
-                self.inputs['N'].textChanged.connect(self.enforce_input_rules)
-        except Exception as e:
-            print(f"Connection error: {e}")
+        self.calculate_btn.clicked.connect(self.calculate)
+        self.plot_btn.clicked.connect(self.plot)
+        if 'r_wire' in self.inputs:  # Check if input exists before connecting
+            self.inputs['r_wire'].textChanged.connect(self.enforce_input_rules)
+        if 'N' in self.inputs:
+            self.inputs['N'].textChanged.connect(self.enforce_input_rules)
 
     def create_input_fields(self, layout):
         units = {
@@ -467,6 +463,7 @@ class MagnetismTab(BaseEMTab):
             hbox.addWidget(unit_combo)
             layout.addRow(symbols[var], hbox)
             self.unit_combos[var] = unit_combo
+
 
     def enforce_input_rules(self):
         """When either r_wire or N is entered, disable the other"""
