@@ -1,0 +1,1 @@
+⚠️ This project uses openai==0.28 for compatibility with legacy APIs. For production, update to the latest version and migrate accordingly lol.

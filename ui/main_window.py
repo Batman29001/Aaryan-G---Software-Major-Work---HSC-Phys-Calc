@@ -5,6 +5,7 @@ from ui.dynamics_tab import DynamicsTab
 from ui.waves_tab import WavesTab
 from ui.electricity_magnetism_tab import ElectricityMagnetismTab
 from ui.advanced_mechanics_tab import AdvancedMechanicsTab  
+from ui.ai_assistant_tab import AIAssistantTab
 
 class MainMenu(QWidget):
     def __init__(self, parent=None):
@@ -27,6 +28,7 @@ class MainMenu(QWidget):
         self.waves_btn = QPushButton("Waves Calculator")
         self.em_btn = QPushButton("Electricity and Magnetism")
         self.advanced_mechanics_btn = QPushButton("Advanced Mechanics")
+        self.ai_btn = QPushButton("AI Physics Solver")
         
         # Style buttons
         button_style = """
@@ -49,6 +51,7 @@ class MainMenu(QWidget):
         self.waves_btn.setStyleSheet(button_style)
         self.em_btn.setStyleSheet(button_style)
         self.advanced_mechanics_btn.setStyleSheet(button_style)
+        self.ai_btn.setStyleSheet(button_style)
         
         # Add buttons to layout
         layout.addWidget(self.kinematics_btn)
@@ -56,6 +59,7 @@ class MainMenu(QWidget):
         layout.addWidget(self.waves_btn)
         layout.addWidget(self.em_btn)
         layout.addWidget(self.advanced_mechanics_btn)
+        layout.addWidget(self.ai_btn)
         layout.addStretch()
         
         self.setLayout(layout)
@@ -77,7 +81,8 @@ class PhysicsCalculator(QMainWindow):
         self.dynamics_tab = DynamicsTab()
         self.waves_tab = WavesTab()
         self.em_tab = ElectricityMagnetismTab()
-        self.advanced_mechanics_tab = AdvancedMechanicsTab() 
+        self.advanced_mechanics_tab = AdvancedMechanicsTab()
+        self.ai_tab = AIAssistantTab()   
         
         # Add all widgets to stacked widget
         self.stacked_widget.addWidget(self.main_menu)
@@ -86,6 +91,7 @@ class PhysicsCalculator(QMainWindow):
         self.stacked_widget.addWidget(self.waves_tab)
         self.stacked_widget.addWidget(self.em_tab)
         self.stacked_widget.addWidget(self.advanced_mechanics_tab)
+        self.stacked_widget.addWidget(self.ai_tab)  
         
         # Connect menu buttons to switch views
         self.main_menu.kinematics_btn.clicked.connect(lambda: self.switch_to_calculator(1))
@@ -93,13 +99,14 @@ class PhysicsCalculator(QMainWindow):
         self.main_menu.waves_btn.clicked.connect(lambda: self.switch_to_calculator(3))
         self.main_menu.em_btn.clicked.connect(lambda: self.switch_to_calculator(4))
         self.main_menu.advanced_mechanics_btn.clicked.connect(lambda: self.switch_to_calculator(5))
+        self.main_menu.ai_btn.clicked.connect(lambda: self.switch_to_calculator(6))
         
         # Set central widget
         self.setCentralWidget(self.stacked_widget)
         
         # Show main menu by default
         self.stacked_widget.setCurrentIndex(0)
-    
+  
     def switch_to_calculator(self, index):
         self.stacked_widget.setCurrentIndex(index)
     
