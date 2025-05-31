@@ -1,7 +1,6 @@
-#might be removing
-import openai
 import json
 from typing import Dict
+from core.local_ai_parser import LocalAIParser 
 from core.advanced_mechanics import *
 from core.dynamics import solve_dynamics
 from core.electricity_magnetism import *
@@ -9,10 +8,8 @@ from core.kinematics import solve_kinematics
 from core.waves import *
 
 class AISolver:
-    def __init__(self, api_key: str):
-        openai.api_key = api_key
-        if not openai.api_key.startswith("sk-"):
-            raise ValueError("Invalid OpenAI API key format")
+    def __init__(self):
+        self.parser = LocalAIParser()  
         self.solvers = {
             "kinematics": solve_kinematics,
             "dynamics": solve_dynamics,
@@ -29,38 +26,18 @@ class AISolver:
         }
 
     def solve(self, text: str) -> Dict:
-        """Main solver that handles all physics problems"""
-        # Step 1: Call AI to extract variables and identify topic
-        prompt = f"""
-        Given this physics problem: "{text}"
-        
-        Return JSON with:
-        1. "topic" (match exactly one of: {list(self.solvers.keys())})
-        2. "inputs" (dict of variables like {{"m": 2, "v": 5}})
-        3. "target" (the variable to solve for, e.g., "F")
-        
-        Example:
-        {{
-            "topic": "circular",
-            "inputs": {{"m": 2, "v": 5, "r": 3}},
-            "target": "F_c"
-        }}
-        """
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(response.choices[0].message.content)
-
-        # Step 2: Solve using the appropriate module
-        solver = self.solvers[data["topic"]]
-        result = solver(**data["inputs"])
-
-        # Step 3: Return the target variable if found
-        output = {
-            "topic": data["topic"],
-            "inputs": data["inputs"],
-            "result": result.get(data["target"], "Cannot solve for this variable")
-        }
-        return output
+        try:
+            # Step 1: Parse with local AI
+            parsed = self.parser.parse(text)
+            
+            # Step 2: Solve using appropriate module
+            solver = self.solvers[parsed["topic"]]
+            result = solver(**parsed["inputs"])
+            
+            return {
+                "topic": parsed["topic"],
+                "inputs": parsed["inputs"],
+                "result": result.get(parsed["target"], "Cannot solve for this variable")
+            }
+        except Exception as e:
+            return {"error": str(e)}
