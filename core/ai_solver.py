@@ -6,6 +6,8 @@ from core.dynamics import solve_dynamics
 from core.electricity_magnetism import *
 from core.kinematics import solve_kinematics
 from core.waves import *
+import traceback
+
 
 class AISolver:
     def __init__(self):
@@ -27,17 +29,19 @@ class AISolver:
 
     def solve(self, text: str) -> Dict:
         try:
-            # Step 1: Parse with local AI
             parsed = self.parser.parse(text)
-            
-            # Step 2: Solve using appropriate module
             solver = self.solvers[parsed["topic"]]
             result = solver(**parsed["inputs"])
             
             return {
                 "topic": parsed["topic"],
                 "inputs": parsed["inputs"],
-                "result": result.get(parsed["target"], "Cannot solve for this variable")
+                "result": result.get(parsed["target"], "Cannot solve"),
+                "raw_ai_response": response  # For debugging
             }
-        except Exception as e:
-            return {"error": str(e)}
+        except KeyError:
+            return {"error": "Unrecognized physics topic"}
+        except ValueError as e:
+            return {"error": f"Physics parsing error: {str(e)}"}
+        except Exception:
+            return {"error": traceback.format_exc()}

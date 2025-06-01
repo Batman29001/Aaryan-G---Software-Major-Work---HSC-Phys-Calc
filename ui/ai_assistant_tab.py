@@ -11,40 +11,38 @@ class AIAssistantTab(QWidget):
 
     def initUI(self):
         layout = QVBoxLayout()
-        
+    
         # Input
         self.input_box = QTextEdit()
-        self.input_box.setPlaceholderText("e.g., 'A 2kg mass moves at 5 m/s in a 3m circle. Find centripetal force.'")
-        
-        # Button
-        self.solve_btn = QPushButton("Solve with AI")
-        self.solve_btn.clicked.connect(self.solve_problem)
-        
-        # Output
+        self.input_box.setPlaceholderText("""Example problems:
+            1. "Find range of projectile at 20 m/s, 30°"
+            2. "3kg mass in 2m radius circle at 4m/s. Find force"
+            3. "5μC charge in 200N/C field. Find force\"""")
+    
+    # Button with loading state
+        self.solve_btn = QPushButton("🔍 Solve with AI")
+        self.solve_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                padding: 10px;
+                font-weight: bold;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+            }
+        """)
+    
+    # Result display
         self.result_label = QLabel()
-        self.result_label.setWordWrap(True)
-        
+        self.result_label.setStyleSheet("""
+            QLabel {
+                background-color: #f8f9fa;
+                padding: 10px;
+                border-radius: 5px;
+            }
+        """)
+    
         layout.addWidget(self.input_box)
         layout.addWidget(self.solve_btn)
         layout.addWidget(self.result_label)
         self.setLayout(layout)
-
-    def solve_problem(self):
-        problem = self.input_box.toPlainText().strip()
-        if not problem:
-            self.result_label.setText("⚠️ Please enter a physics problem")
-            return
-
-        try:
-            solution = self.solver.solve(problem)
-            if "error" in solution:
-                self.result_label.setText(f"⚠️ {solution['error']}")
-            else:
-                self.result_label.setText(
-                    f"🔍 Topic: {solution['topic'].upper()}\n"
-                    f"📥 Inputs: {solution['inputs']}\n"
-                    f"🎯 Target: {solution.get('target', 'Unknown')}\n"
-                    f"📤 Result: {solution['result']}"
-                )
-        except Exception as e:
-            self.result_label.setText(f"⚠️ Error: {str(e)}")
