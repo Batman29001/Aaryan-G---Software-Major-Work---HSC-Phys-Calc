@@ -1,2 +1,17 @@
-⚠️ This project uses openai==0.28 for compatibility with legacy APIs. For production, update to the latest version and migrate accordingly lol. (Nah we use Minsetral 7b now)
-    Needs NVIDIA CUDA 11.8 =< installed
+
+# Core dependencies for the Physics Calculator
+PyQt6>=6.4.0
+numpy>=1.21.0
+
+# AI/ML dependencies
+ctransformers>=0.2.24
+huggingface-hub>=0.16.0
+torch>=2.0.0  # For model loading support
+
+# Optional GPU acceleration (uncomment if you have CUDA)
+# torch-audio>=2.0.0
+# torch-vision>=0.15.0
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
