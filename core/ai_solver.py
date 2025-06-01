@@ -37,7 +37,7 @@ class AISolver:
                 "topic": parsed["topic"],
                 "inputs": parsed["inputs"],
                 "result": result.get(parsed["target"], "Cannot solve"),
-                "raw_ai_response": response  # For debugging
+                "raw_ai_response": str(parsed)  # Changed from undefined 'response' to str(parsed)
             }
         except KeyError:
             return {"error": "Unrecognized physics topic"}

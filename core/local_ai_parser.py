@@ -10,7 +10,8 @@ class LocalAIParser:
             "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
             model_file="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
             model_type="mistral",
-            gpu_layers=50 if torch.cuda.is_available() else 0  # Auto GPU/CPU
+            gpu_layers=0,
+            local_files_only=True
         )
         
         self.prompt_template = """[INST]Analyze this HSC physics problem:

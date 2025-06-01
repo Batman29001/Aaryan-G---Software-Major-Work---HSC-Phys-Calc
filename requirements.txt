@@ -1,1 +1,2 @@
-⚠️ This project uses openai==0.28 for compatibility with legacy APIs. For production, update to the latest version and migrate accordingly lol.
+⚠️ This project uses openai==0.28 for compatibility with legacy APIs. For production, update to the latest version and migrate accordingly lol. (Nah we use Minsetral 7b now)
+    Needs NVIDIA CUDA 11.8 =< installed
