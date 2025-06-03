@@ -1,20 +1,21 @@
-from ctransformers import AutoModelForCausalLM  # Replace transformers
+from ctransformers import AutoModelForCausalLM
 import re
 import json
 from typing import Dict
 
 class LocalAIParser:
     def __init__(self):
-        # Use quantized Mistral (4-bit GGUF)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
-            model_file="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
-            model_type="mistral",
-            gpu_layers=0,
-            local_files_only=True
-        )
-        
-        self.prompt_template = """[INST]Analyze this HSC physics problem:
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
+                model_file="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+                model_type="mistral",
+                gpu_layers=0,  # Force CPU-only
+                threads=8,     # Use all CPU cores
+                local_files_only=False
+            )
+            
+            self.prompt_template = """[INST]Analyze this physics problem:
 {problem}
 
 Return JSON with:
@@ -22,14 +23,20 @@ Return JSON with:
 - "inputs" ({{"variable": value}})
 - "target" (variable to find)
 
-Example: {{"topic":"projectile","inputs":{{"u":20,"θ":30}},"target":"range"}}[/INST]"""
+Example: {{"topic":"projectile","inputs":{{"velocity":20,"angle":30}},"target":"range"}}[/INST]"""
+            
+        except Exception as e:
+            raise RuntimeError(f"Model initialization failed: {str(e)}")
 
     def parse(self, problem: str) -> Dict:
-        prompt = self.prompt_template.format(problem=problem)
-        response = self.model(prompt, max_new_tokens=200)
-        
         try:
-            json_str = re.search(r'\{.*\}', response, re.DOTALL).group()
+            response = self.model(
+                self.prompt_template.format(problem=problem),
+                max_new_tokens=150,
+                temperature=0.3,
+                repetition_penalty=1.1
+            )
+            json_str = re.search(r'\{[^{}]*\}', response).group()
             return json.loads(json_str)
-        except:
-            raise ValueError("Could not parse physics problem")
+        except Exception as e:
+            raise ValueError(f"Parsing failed: {str(e)}")

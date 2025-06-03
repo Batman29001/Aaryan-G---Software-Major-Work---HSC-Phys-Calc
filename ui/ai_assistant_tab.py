@@ -1,12 +1,29 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, 
-                            QPushButton, QLabel, QScrollArea, QHBoxLayout)
-from PyQt6.QtCore import Qt
+                            QPushButton, QLabel, QScrollArea, QHBoxLayout, QApplication)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from core.ai_solver import AISolver
+
+class AIWorker(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, solver, problem_text):
+        super().__init__()
+        self.solver = solver
+        self.problem_text = problem_text
+
+    def run(self):
+        try:
+            result = self.solver.solve(self.problem_text)
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
 
 class AIAssistantTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.solver = AISolver()  
+        self.worker = None
         self.initUI()
 
     def initUI(self):
@@ -77,20 +94,34 @@ class AIAssistantTab(QWidget):
         self.solve_btn.setEnabled(False)
         self.solve_btn.setText("Solving...")
         
-        try:
-            result = self.solver.solve(problem_text)
-            if "error" in result:
-                self.result_label.setText(f"Error: {result['error']}")
-            else:
-                response = f"Topic: {result['topic']}\n"
-                response += f"Inputs: {result['inputs']}\n"
-                response += f"Result: {result.get('result', 'No result found')}"
-                self.result_label.setText(response)
-        except Exception as e:
-            self.result_label.setText(f"An error occurred: {str(e)}")
-        finally:
-            self.solve_btn.setEnabled(True)
-            self.solve_btn.setText("🔍 Solve with AI")
+        # Force UI update immediately
+        QApplication.processEvents()
+        
+        # Cancel any existing worker
+        if self.worker and self.worker.isRunning():
+            self.worker.terminate()
+            
+        self.worker = AIWorker(self.solver, problem_text)
+        self.worker.finished.connect(self.on_solution_finished)
+        self.worker.error.connect(self.on_solution_error)
+        self.worker.start()
+
+    def on_solution_finished(self, result):
+        if "error" in result:
+            self.result_label.setText(f"Error: {result['error']}")
+        else:
+            response = f"<b>Topic:</b> {result['topic']}<br>"
+            response += f"<b>Inputs:</b> {result['inputs']}<br>"
+            response += f"<b>Result:</b> {result.get('result', 'No result found')}"
+            self.result_label.setText(response)
+            
+        self.solve_btn.setEnabled(True)
+        self.solve_btn.setText("🔍 Solve with AI")
+
+    def on_solution_error(self, error):
+        self.result_label.setText(f"An error occurred: {error}")
+        self.solve_btn.setEnabled(True)
+        self.solve_btn.setText("🔍 Solve with AI")
 
     def return_to_menu(self):
         self.parent().parent().return_to_menu()
