@@ -1,0 +1,1 @@
+Calculate the force on a 3kg mass moving at 4m/s in a 2m circle

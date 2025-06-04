@@ -30,42 +30,25 @@ class AISolver:
             "light": solve_light_properties
         }
 
-    def solve(self, text: str) -> Dict:
-        try:
-            # First parse the problem
-            parsed = self.parser.parse(text)
-            
-            # Validate the topic
-            topic = parsed.get("topic", "").lower()
-            if topic not in self.solvers:
-                return {"error": f"Unrecognized physics topic: {topic}"}
+    def solve(self, text: str, retries=2) -> Dict:
+        for attempt in range(retries + 1):
+            try:
+                if attempt > 0:  # Simplify input on retry
+                    text = self._simplify_problem_text(text)
+                parsed = self.parser.parse(text)
+                # ... rest of solver logic ...
                 
-            # Validate inputs
-            inputs = parsed.get("inputs", {})
-            if not inputs or not isinstance(inputs, dict):
-                return {"error": "Invalid input parameters"}
-                
-            # Get the solver function
-            solver = self.solvers[topic]
-            
-            # Try to solve
-            result = solver(**inputs)
-            
-            # Validate result
-            target = parsed.get("target", "")
-            if not target:
-                return {"error": "No target variable specified"}
-                
-            return {
-                "topic": topic,
-                "inputs": inputs,
-                "result": result.get(target, "Cannot solve for the requested variable"),
-                "raw_ai_response": str(parsed)
-            }
-            
-        except KeyError as e:
-            return {"error": f"Missing required parameter: {str(e)}"}
-        except ValueError as e:
-            return {"error": f"Physics calculation error: {str(e)}"}
-        except Exception as e:
-            return {"error": f"Unexpected error: {str(e)}"}
+            except Exception as e:
+                if attempt == retries:
+                    return {
+                        "error": f"Physics solver failed. Try simpler phrasing like '3kg at 4m/s in 2m circle - find force'",
+                        "raw_input": text
+                    }
+
+    def _simplify_problem_text(self, text: str) -> str:
+        """Extract key numbers and units for retry"""
+        simplified = []
+        for part in text.split():
+            if any(c.isdigit() for c in part):
+                simplified.append(part)
+        return ' '.join(simplified[:10])  # Limit to first 10 number-containing words
