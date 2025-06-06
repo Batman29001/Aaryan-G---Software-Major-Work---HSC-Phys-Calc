@@ -1,1 +1,3 @@
 Calculate the force on a 3kg mass moving at 4m/s in a 2m circle
+
+A ball starts from rest and accelerates at 2 m/s² for 3 seconds. How far does it travel?

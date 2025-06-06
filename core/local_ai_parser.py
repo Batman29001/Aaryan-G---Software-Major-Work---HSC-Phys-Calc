@@ -16,17 +16,28 @@ class LocalAIParser:
             )
             
             # Strict prompt template with examples
-            self.prompt_template = """[INST]Analyze this physics problem:
-{problem}
+            self.prompt_template = """[INST]Convert this physics problem to JSON:
+            {problem}
 
-Return JSON with these EXACT keys:
-{"topic":"circular/kinematics/etc.","inputs":{"parameter":value},"target":"parameter"}
+            Use EXACTLY this format:
+            {{
+            "topic": "topic_name",
+            "inputs": {{
+                "param1": value1,
+                "param2": value2
+            }},
+            "target": "parameter_to_find"
+            }}
 
-Use ONLY these parameter names:
-m (kg), v (m/s), r (m), θ (°), t (s), a (m/s²), F (N), f (Hz), T (s), q (C), V (V), I (A), R (Ω)
-
-Example for circular motion:
-{"topic":"circular","inputs":{"m":3,"v":4,"r":2},"target":"F"}[/INST]"""
+            Available topics:
+            - "kinematics" (u,v,a,s,t)
+            - "circular" (m,v,r,F)
+            - "projectile" (u,θ,t,max_height,range)
+            - "dynamics" (m,a,F)
+            - "electrostatics" (q,E,F,V)
+            - "circuits" (V,I,R,P)
+            - "waves" (v,f,λ)
+            [/INST]"""
             
         except Exception as e:
             raise RuntimeError(f"Model initialization failed: {str(e)}")
