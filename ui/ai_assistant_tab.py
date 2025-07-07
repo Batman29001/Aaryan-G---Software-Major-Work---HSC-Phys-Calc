@@ -1,22 +1,32 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, 
-                            QPushButton, QLabel)
-from PyQt6.QtCore import Qt
-from core.physics_ai import PhysicsMistral, PhysicsInterpreter, SolverOrchestrator
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, QPushButton, QLabel)
+from PyQt6.QtCore import QThread, pyqtSignal
+from core.physics_ai.hf_mistral import PhysicsMistral
 
-ENABLE_AI = False 
+ENABLE_AI = True 
+
+class AIWorker(QThread):
+    finished = pyqtSignal(str)  # Signal to send the AI's response back
+    error = pyqtSignal(str)     # Signal for errors
+
+    def __init__(self, mistral, question):
+        super().__init__()
+        self.mistral = mistral
+        self.question = question
+
+    def run(self):
+        try:
+            response = self.mistral.analyze_question(self.question)
+            self.finished.emit(response)
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 class AIAssistantTab(QWidget):
+
     def __init__(self):
         super().__init__()
-        if ENABLE_AI:
-            self.mistral = PhysicsMistral()
-            self.interpreter = PhysicsInterpreter()
-            self.solver = SolverOrchestrator()
-        else:
-            self.mistral = None
-            self.interpreter = None
-            self.solver = None
-        
+        self.mistral = PhysicsMistral() if ENABLE_AI else None
+        self.worker = None  # Track active worker
         self.init_ui()
 
     def init_ui(self):
@@ -43,31 +53,33 @@ class AIAssistantTab(QWidget):
         
         self.setLayout(layout)
 
+    def validate_ai_response(self, response: str) -> str:
+        """Ensure the AI's response contains a 'Final Answer' section."""
+        if "**Final Answer:**" not in response:
+            return "ERROR: AI failed to follow the required format.\n\nRaw AI Output:\n" + response
+        return response
+
     def solve_question(self):
+        if self.worker and self.worker.isRunning():  # Prevent duplicate requests
+            return
+
         question = self.question_input.toPlainText()
         if not question.strip():
             return
-            
-        try:
-            # Step 1: Get AI analysis
-            ai_response = self.mistral.analyze_question(question)
-            
-            # Step 2: Extract variables and module
-            variables = self.interpreter.extract_variables(ai_response)
-            module = self.interpreter.determine_module(ai_response)
-            
-            if not module:
-                raise ValueError("Could not determine physics module")
-            
-            # Step 3: Solve using appropriate module
-            solution = self.solver.solve(module, variables)
-            
-            # Format response
-            response = f"{ai_response}\n\nCalculated Solution:\n"
-            response += "\n".join(f"{k}: {v}" for k, v in solution.items())
-            
-        except Exception as e:
-            response = f"Error: {str(e)}\n\nPlease provide a clear physics question with all required values."
-            
-        self.response_display.setPlainText(response)
-        self.question_input.clear()
+
+        self.response_display.setPlainText("Processing...")  # Show loading state
+        self.worker = AIWorker(self.mistral, question)
+        self.worker.finished.connect(self.handle_response)  # Connect signals
+        self.worker.error.connect(self.handle_error)
+        self.worker.start()  # Run in background
+
+
+    def handle_response(self, response):
+        validated = self.validate_ai_response(response)
+        self.response_display.setPlainText(validated)
+        self.worker = None  # Reset worker
+
+    def handle_error(self, error_msg):
+        self.response_display.setPlainText(f"Error: {error_msg}")
+        self.worker = None
+        
