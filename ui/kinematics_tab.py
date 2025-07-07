@@ -221,31 +221,26 @@ class KinematicsTab(QWidget):
         return values
     
     def calculate(self):
-        """Perform kinematics calculation"""
+        # Reset results to avoid stale data
+        self.last_result = None
+        self.result_display.setText("Calculating...")
+        
+        # Get inputs and solve
         values = self.get_input_values()
-        provided = sum(1 for v in values.values() if v is not None)
-        
-        if provided < 3:
-            QMessageBox.warning(self, "Insufficient Data", 
-                              "At least 3 variables are required!")
-            return
-        
         result = solve_kinematics(**values)
-        self.last_result = result
+        self.last_result = result  # Store for plotting
         
-        # Display results
+        # Format results (handle lists for ± solutions)
         result_text = "📊 Results:\n"
         for var, val in result.items():
             if val is None:
                 result_text += f"• {var}: ❓ (missing data)\n"
+            elif isinstance(val, list):
+                result_text += f"• {var}: {' or '.join(f'{x:.3f}' for x in val)}\n"
             else:
                 result_text += f"• {var}: {val:.3f}\n"
         
         self.result_display.setText(result_text)
-        
-        # Determine which formula was used
-        formula_text = self.determine_used_formula(result, values)
-        self.formula_label.setText(f"Used formula: {formula_text}")
     
     def determine_used_formula(self, result, original_inputs):
         """Simple heuristic to determine which formula was likely used"""

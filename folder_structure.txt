@@ -1,20 +1,26 @@
 Directory structure:
 └── core/
      ├── advanced_mechanics.py
-     ├── ai_solver.py
      ├── dynamics.py
      ├── electricity_magnetism.py
      ├── kinematics.py
-     ├── local_ai_parser.py
+     ├── physics_ai/
+     │    ├── hf_mistral.py
+     │    ├── physics_interpreter.py
+     │    ├── solver_orchestrator.py
+     │    ├── __init__.py
+     │    └── __pycache__/
+     │         ├── hf_mistral.cpython-312.pyc
+     │         ├── physics_interpreter.cpython-312.pyc
+     │         ├── solver_orchestrator.cpython-312.pyc
+     │         └── __init__.cpython-312.pyc
      ├── waves.py
      └── __pycache__/
           ├── advanced_mechanics.cpython-312.pyc
-          ├── ai_solver.cpython-312.pyc
           ├── dynamics.cpython-312.pyc
           ├── electricity_magnetism.cpython-312.pyc
           ├── kinematics.cpython-312.pyc
-          ├── local_ai_parser.cpython-312.pyc
-          └── waves.cpython-312.pycDirectory structure:
+          └── waves.cpython-312.pyc
 └── ui/
      ├── advanced_mechanics_tab.py
      ├── ai_assistant_tab.py
@@ -31,4 +37,4 @@ Directory structure:
           ├── kinematics_tab.cpython-312.pyc
           ├── main_window.cpython-312.pyc
           └── waves_tab.cpython-312.pyc
-└── main.py
+└── main.py       

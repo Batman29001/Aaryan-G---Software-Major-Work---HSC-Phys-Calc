@@ -8,8 +8,8 @@ class PhysicsMistral:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
-            torch_dtype=torch.float16,
-            device_map="auto"  # ← Remove or change to "cpu"
+            device_map="cpu",
+            torch_dtype=torch.float32,
         )
         self.system_prompt = """You are a physics expert solving HSC-level problems. 
         Analyze questions to identify:
@@ -27,6 +27,6 @@ class PhysicsMistral:
 
     def analyze_question(self, question):
         prompt = f"<s>[INST] {self.system_prompt}\nQuestion: {question} [/INST]"
-        inputs = self.tokenizer(prompt, return_tensors="pt").to("cuda")
+        inputs = self.tokenizer(prompt, return_tensors="pt").to("cpu")  # Changed to CPU
         outputs = self.model.generate(**inputs, max_new_tokens=500)
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)

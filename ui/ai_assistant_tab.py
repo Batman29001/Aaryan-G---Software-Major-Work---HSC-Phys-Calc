@@ -3,12 +3,20 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit,
 from PyQt6.QtCore import Qt
 from core.physics_ai import PhysicsMistral, PhysicsInterpreter, SolverOrchestrator
 
+ENABLE_AI = False 
+
 class AIAssistantTab(QWidget):
     def __init__(self):
         super().__init__()
-        self.mistral = PhysicsMistral()
-        self.interpreter = PhysicsInterpreter()
-        self.solver = SolverOrchestrator()
+        if ENABLE_AI:
+            self.mistral = PhysicsMistral()
+            self.interpreter = PhysicsInterpreter()
+            self.solver = SolverOrchestrator()
+        else:
+            self.mistral = None
+            self.interpreter = None
+            self.solver = None
+        
         self.init_ui()
 
     def init_ui(self):
