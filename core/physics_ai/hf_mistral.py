@@ -34,11 +34,18 @@ class PhysicsMistral:
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     def _load_model(self):
-        """Load model on first use to avoid startup delay."""
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            device_map="auto",       # Uses GPU if available
-            torch_dtype=torch.float16,  # Faster on GPU
-            low_cpu_mem_usage=True,
-        )
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="auto",
+                torch_dtype=torch.float16,
+            )
+        except RuntimeError as e:
+            print(f"GPU error, falling back to CPU: {e}")
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="cpu",
+                torch_dtype=torch.float32,  # FP32 on CPU
+            )
+        self.model.eval()
