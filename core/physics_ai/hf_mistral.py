@@ -3,11 +3,12 @@ import torch
 
 class PhysicsMistral:
     def __init__(self):
-        self.model_name = "mistralai/Mistral-7B-Instruct-v0.1"
-        self.tokenizer = None #lazy load
-        self.model = None #lazy load
+        # Switch to a smaller model
+        self.model_name = "microsoft/phi-2"
+        self.tokenizer = None
+        self.model = None
         self.system_prompt = """You are a physics expert solving problems. Follow these rules:
-        1. **Identify Variables**: List all given values with units (e.g., "mass = 5 kg").
+        1. **Identify Variables**: List all given values with units.
         2. **Use SI Units**: Convert everything to meters, kg, seconds, etc.
         3. **Show Formulas**: Explicitly state the physics formula used.
         4. **Final Answer**: Format as:  
@@ -24,27 +25,37 @@ class PhysicsMistral:
         Now solve this:"""
 
     def analyze_question(self, question):
-        if self.model is None:  # Loads only when first used
+        if self.model is None:
             self._load_model()
 
-        prompt = f"<s>[INST] {self.system_prompt}\nQuestion: {question} [/INST]"
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)  
-        outputs = self.model.generate(**inputs, max_new_tokens=500)
+        prompt = f"Instruct: {self.system_prompt}\nQuestion: {question}\nOutput:"
+        inputs = self.tokenizer(prompt, return_tensors="pt", return_attention_mask=False)
+        
+        # Generate more efficiently
+        outputs = self.model.generate(
+            **inputs,
+            max_new_tokens=300,
+            temperature=0.7,
+            do_sample=True
+        )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     def _load_model(self):
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 device_map="auto",
                 torch_dtype=torch.float16,
+                trust_remote_code=True
             )
-        except RuntimeError as e:
-            print(f"GPU error, falling back to CPU: {e}")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            # Fallback to CPU with simpler settings
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 device_map="cpu",
-                torch_dtype=torch.float32,  # FP32 on CPU
+                torch_dtype=torch.float32,
+                trust_remote_code=True
             )
         self.model.eval()

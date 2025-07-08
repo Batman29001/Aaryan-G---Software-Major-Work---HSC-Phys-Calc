@@ -60,18 +60,26 @@ class AIAssistantTab(QWidget):
         return response
 
     def solve_question(self):
-        if self.worker and self.worker.isRunning():  # Prevent duplicate requests
+        if not ENABLE_AI:
+            self.response_display.setPlainText("AI feature is disabled")
+            return
+
+        if self.worker and self.worker.isRunning():
             return
 
         question = self.question_input.toPlainText()
         if not question.strip():
+            self.response_display.setPlainText("Please enter a question")
             return
 
-        self.response_display.setPlainText("Processing...")  # Show loading state
-        self.worker = AIWorker(self.mistral, question)
-        self.worker.finished.connect(self.handle_response)  # Connect signals
-        self.worker.error.connect(self.handle_error)
-        self.worker.start()  # Run in background
+        try:
+            self.response_display.setPlainText("Processing...")
+            self.worker = AIWorker(self.mistral, question)
+            self.worker.finished.connect(self.handle_response)
+            self.worker.error.connect(self.handle_error)
+            self.worker.start()
+        except Exception as e:
+            self.response_display.setPlainText(f"Initialization error: {str(e)}")
 
 
     def handle_response(self, response):
