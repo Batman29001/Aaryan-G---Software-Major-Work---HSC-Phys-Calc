@@ -15,3 +15,5 @@ torch>=2.0.0  # For model loading support
 # Development dependencies (optional)
 # pytest>=7.0.0
 # black>=22.0.0
+
+pip install requests

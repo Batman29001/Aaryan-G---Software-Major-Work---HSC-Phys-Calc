@@ -1,4 +1,3 @@
-# core/physics_ai/hf_mistral.py
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
