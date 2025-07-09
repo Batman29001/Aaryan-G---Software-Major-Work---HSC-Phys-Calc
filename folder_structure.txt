@@ -1,8 +1,11 @@
 Directory structure:
 └── core/
      ├── advanced_mechanics.py
+     ├── auth.py
+     ├── database.py
      ├── dynamics.py
      ├── electricity_magnetism.py
+     ├── electromagnetism.py
      ├── kinematics.py
      ├── physics_ai/
      │    ├── hf_mistral.py
@@ -19,6 +22,7 @@ Directory structure:
           ├── advanced_mechanics.cpython-312.pyc
           ├── dynamics.cpython-312.pyc
           ├── electricity_magnetism.cpython-312.pyc
+          ├── electromagnetism.cpython-312.pyc
           ├── kinematics.cpython-312.pyc
           └── waves.cpython-312.pyc
 └── ui/
@@ -26,14 +30,18 @@ Directory structure:
      ├── ai_assistant_tab.py
      ├── dynamics_tab.py
      ├── electricity_magnetism_tab.py
+     ├── electromagnetism_tab.py
      ├── kinematics_tab.py
+     ├── login_dialog.py
      ├── main_window.py
+     ├── signup_dialog.py
      ├── waves_tab.py
      └── __pycache__/
           ├── advanced_mechanics_tab.cpython-312.pyc
           ├── ai_assistant_tab.cpython-312.pyc
           ├── dynamics_tab.cpython-312.pyc
           ├── electricity_magnetism_tab.cpython-312.pyc
+          ├── electromagnetism_tab.cpython-312.pyc
           ├── kinematics_tab.cpython-312.pyc
           ├── main_window.cpython-312.pyc
           └── waves_tab.cpython-312.pyc
