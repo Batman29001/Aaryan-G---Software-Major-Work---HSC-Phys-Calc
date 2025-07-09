@@ -1,5 +1,4 @@
-print("Starting minimal test")
-raise RuntimeError("This is a test error")
-
+from core.database import init_db
+print(init_db())
 
 

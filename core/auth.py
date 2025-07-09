@@ -5,9 +5,11 @@ from mysql.connector import IntegrityError  # Add this import
 
 class AuthManager:
     def __init__(self):
+            print("Attempting database connection...")
             self.conn = init_db()
+            print(f"Connection result: {self.conn}")  
             if not self.conn:
-                print("❌ Database connection failed. Exiting...")
+                print("Database connection failed. Exiting...")
                 raise SystemExit(1)
     
     def signup(self, username, email, password):
