@@ -37,4 +37,5 @@ Directory structure:
           ├── kinematics_tab.cpython-312.pyc
           ├── main_window.cpython-312.pyc
           └── waves_tab.cpython-312.pyc
-└── main.py       
+└── main.py 
+└── hftest.py      
