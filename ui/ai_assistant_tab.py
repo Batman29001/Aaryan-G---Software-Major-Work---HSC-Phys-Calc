@@ -22,11 +22,10 @@ class AIWorker(QThread):
 
 
 class AIAssistantTab(QWidget):
-
     def __init__(self):
         super().__init__()
         self.mistral = PhysicsMistral() if ENABLE_AI else None
-        self.worker = None  # Track active worker
+        self.worker = None
         self.init_ui()
 
     def init_ui(self):
@@ -64,8 +63,10 @@ class AIAssistantTab(QWidget):
             self.response_display.setPlainText("AI feature is disabled")
             return
 
+        # Stop any existing worker before starting a new one
         if self.worker and self.worker.isRunning():
-            return
+            self.worker.quit()  # Request thread to stop
+            self.worker.wait()   # Wait for it to finish
 
         question = self.question_input.toPlainText()
         if not question.strip():
@@ -79,7 +80,7 @@ class AIAssistantTab(QWidget):
             self.worker.error.connect(self.handle_error)
             self.worker.start()
         except Exception as e:
-            self.response_display.setPlainText(f"Initialization error: {str(e)}")
+            self.response_display.setPlainText(f"Error: {str(e)}")
 
 
     def handle_response(self, response):
@@ -90,4 +91,11 @@ class AIAssistantTab(QWidget):
     def handle_error(self, error_msg):
         self.response_display.setPlainText(f"Error: {error_msg}")
         self.worker = None
+
+    def closeEvent(self, event):
+        """Ensure thread is stopped when closing the widget."""
+        if self.worker and self.worker.isRunning():
+            self.worker.quit()
+            self.worker.wait()
+        event.accept()
         

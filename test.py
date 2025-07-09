@@ -1,4 +1,4 @@
-from core.database import init_db
-print(init_db())
+import torch
+print(torch.cuda.is_available())  # Should return True if GPU is available
 
 
