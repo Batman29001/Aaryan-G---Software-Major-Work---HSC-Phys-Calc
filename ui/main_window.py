@@ -7,6 +7,7 @@ from ui.electricity_magnetism_tab import ElectricityMagnetismTab
 from ui.advanced_mechanics_tab import AdvancedMechanicsTab  
 from ui.electromagnetism_tab import ElectromagnetismTab
 from ui.ai_assistant_tab import AIAssistantTab
+from ui.global_chat import GlobalChatTab
 
 class MainMenu(QWidget):
     def __init__(self, parent=None):
@@ -31,6 +32,7 @@ class MainMenu(QWidget):
         self.advanced_mechanics_btn = QPushButton("Advanced Mechanics")
         self.electromagnetism_btn = QPushButton("Electromagnetism")
         self.ai_btn = QPushButton("AI Physics Solver")
+        self.global_chat_btn = QPushButton("Global Chat")
         
         # Style buttons
         button_style = """
@@ -55,6 +57,7 @@ class MainMenu(QWidget):
         self.advanced_mechanics_btn.setStyleSheet(button_style)
         self.electromagnetism_btn.setStyleSheet(button_style)
         self.ai_btn.setStyleSheet(button_style)
+        self.global_chat_btn.setStyleSheet(button_style)
         
         # Add buttons to layout
         layout.addWidget(self.kinematics_btn)
@@ -64,13 +67,14 @@ class MainMenu(QWidget):
         layout.addWidget(self.advanced_mechanics_btn)
         layout.addWidget(self.electromagnetism_btn)
         layout.addWidget(self.ai_btn)
-        layout.addStretch()
+        layout.addWidget(self.global_chat_btn)
         
         self.setLayout(layout)
 
 class PhysicsCalculator(QMainWindow):
-    def __init__(self):
+    def __init__(self, auth_manager):
         super().__init__()
+        self.auth_manager = auth_manager
         self.setWindowTitle("HSC Physics Calculator")
         self.setGeometry(100, 100, 1000, 600)
         
@@ -88,6 +92,7 @@ class PhysicsCalculator(QMainWindow):
         self.advanced_mechanics_tab = AdvancedMechanicsTab()
         self.electromagnetism_tab = ElectromagnetismTab()
         self.ai_tab = AIAssistantTab()   
+        self.global_chat_tab = GlobalChatTab(self.auth_manager)
 
         # Add all widgets to stacked widget
         self.stacked_widget.addWidget(self.main_menu)
@@ -97,7 +102,8 @@ class PhysicsCalculator(QMainWindow):
         self.stacked_widget.addWidget(self.em_tab)
         self.stacked_widget.addWidget(self.advanced_mechanics_tab)
         self.stacked_widget.addWidget(self.electromagnetism_tab)
-        self.stacked_widget.addWidget(self.ai_tab)  
+        self.stacked_widget.addWidget(self.ai_tab)
+        self.stacked_widget.addWidget(self.global_chat_tab) 
         
         # Connect menu buttons to switch views
         self.main_menu.kinematics_btn.clicked.connect(lambda: self.switch_to_calculator(1))
@@ -107,6 +113,7 @@ class PhysicsCalculator(QMainWindow):
         self.main_menu.advanced_mechanics_btn.clicked.connect(lambda: self.switch_to_calculator(5))
         self.main_menu.electromagnetism_btn.clicked.connect(lambda: self.switch_to_calculator(6))
         self.main_menu.ai_btn.clicked.connect(lambda: self.switch_to_calculator(7))
+        self.main_menu.global_chat_btn.clicked.connect(lambda: self.switch_to_calculator(8))
         
         # Set central widget
         self.setCentralWidget(self.stacked_widget)

@@ -7,6 +7,7 @@ class AuthManager:
     def __init__(self):
             print("Attempting database connection...")
             self.conn = init_db()
+            self.current_user = None
             print(f"Connection result: {self.conn}")  
             if not self.conn:
                 print("Database connection failed. Exiting...")
@@ -33,4 +34,27 @@ class AuthManager:
             SELECT id, username FROM users 
             WHERE email = %s AND password_hash = %s
         """, (email, password_hash))
-        return cursor.fetchone()
+        
+        user = cursor.fetchone()
+        if user:
+            self.current_user = user  # Store as (id, username)
+        return user
+    
+    def save_global_message(self, user_id, username, message):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO global_messages (user_id, username, message)
+            VALUES (%s, %s, %s)
+        """, (user_id, username, message))
+        self.conn.commit()
+
+    def get_global_messages(self, limit=50):
+        cursor = self.conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT username, message, 
+                DATE_FORMAT(sent_at, '%Y-%m-%d %H:%i') as timestamp
+            FROM global_messages
+            ORDER BY sent_at DESC
+            LIMIT %s
+        """, (limit,))
+        return cursor.fetchall()

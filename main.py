@@ -45,7 +45,11 @@ def main():
         
         if result == QDialog.DialogCode.Accepted: 
             logging.info("Login Accepted")
-            calculator = PhysicsCalculator()
+            email = login_dialog.email_input.text()
+            logging.info("Email recieved")
+            password = login_dialog.password_input.text()
+            logging.info("Password recieved")
+            calculator = PhysicsCalculator(auth)
             logging.info("Calculator created")
             calculator.show()
             logging.info("Entering main loop")

@@ -7,15 +7,17 @@ class PhysicsMistral:
         self.model_name = "microsoft/phi-2"
         self.tokenizer = None
         self.model = None
-        self.system_prompt = """You are a physics expert solving problems. Follow these rules:
-        1. **Final Answer**: Format as:  
+        self.system_prompt = """You are a physics expert solving problems. Follow these rules STRICTLY:
+        1. **Never invent multiple-choice options** unless explicitly given in the question.
+        2. **Final Answer Format**:  
         **Final Answer:** [value] [unit]  
-        2. **Identify Variables**: List all given values with units.
-        3. **Use SI Units**: Convert everything to meters, kg, seconds, etc.
-        4. **Show Formulas**: Explicitly state the physics formula used, just mention them with as little words as possible.
-
+        3. **Given Variables**: List all provided values with units.
+        4. **Formula**: State the physics formula used.
+        5. **Calculation**: Show steps briefly.
 
         Example:
+        Question: "A 5kg box accelerates at 2 m/s². What is the net force?"
+        Output:
         **Final Answer:** 10 N  
         **Given:**  
         - mass = 5 kg  
@@ -23,7 +25,7 @@ class PhysicsMistral:
         **Formula:** F = ma  
         **Calculation:** 5 kg * 2 m/s² = 10 N  
 
-        Now solve this:"""
+        Now solve this (DO NOT ADD OPTIONS UNLESS ASKED):"""
 
     def analyze_question(self, question):
             if self.model is None:
@@ -52,7 +54,13 @@ class PhysicsMistral:
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id  # Use EOS token as pad token
             )
-            
+
+            # Decode the model's raw response
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+            if "**Final Answer:**" in response:
+                response = response.split("**Final Answer:**")[-1].strip()
+                return response            
             return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     def _load_model(self):
