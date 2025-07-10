@@ -44,19 +44,20 @@ def main():
         print(f"Login dialog result: {result}")
         
         if result == QDialog.DialogCode.Accepted: 
-            logging.info("Login Accepted")
             email = login_dialog.email_input.text()
-            logging.info("Email recieved")
             password = login_dialog.password_input.text()
-            logging.info("Password recieved")
-            calculator = PhysicsCalculator(auth)
-            logging.info("Calculator created")
-            calculator.show()
-            logging.info("Entering main loop")
-            sys.exit(app.exec())
-        else:
-            logging.warning("Login rejected")
-            sys.exit(1)
+            
+            # Actually verify credentials
+            user = auth.login(email, password)  # This sets auth.current_user
+            
+            if user:  # Only proceed if login succeeded
+                logging.info(f"User {user[1]} logged in (ID: {user[0]})")
+                calculator = PhysicsCalculator(auth)
+                calculator.show()
+                sys.exit(app.exec())
+            else:
+                logging.warning("Invalid credentials")
+                sys.exit(1)
             
     except Exception as e:
         logging.critical(f"CRASH: {str(e)}")

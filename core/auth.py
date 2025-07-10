@@ -41,20 +41,32 @@ class AuthManager:
         return user
     
     def save_global_message(self, user_id, username, message):
+        if not message.strip():
+            return False
+            
         cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO global_messages (user_id, username, message)
-            VALUES (%s, %s, %s)
-        """, (user_id, username, message))
-        self.conn.commit()
+        try:
+            cursor.execute("""
+                INSERT INTO global_messages (user_id, username, message)
+                VALUES (%s, %s, %s)
+            """, (user_id, username, message.strip()))
+            self.conn.commit()
+            return True
+        except Error as e:
+            print(f"Error saving message: {e}")
+            return False
 
-    def get_global_messages(self, limit=50):
+    def get_global_messages(self, limit=100):
         cursor = self.conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT username, message, 
-                DATE_FORMAT(sent_at, '%Y-%m-%d %H:%i') as timestamp
-            FROM global_messages
-            ORDER BY sent_at DESC
-            LIMIT %s
-        """, (limit,))
-        return cursor.fetchall()
+        try:
+            cursor.execute("""
+                SELECT username, message, 
+                    DATE_FORMAT(sent_at, '%Y-%m-%d %H:%i') as timestamp
+                FROM global_messages
+                ORDER BY sent_at ASC  # Changed to ASC for chronological order
+                LIMIT %s
+            """, (limit,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching messages: {e}")
+            return []
