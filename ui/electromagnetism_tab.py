@@ -5,9 +5,10 @@ from PyQt6.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
-from core.electromagnetism import (solve_charged_particles, solve_motor_effect,
-                                  solve_induction, solve_motor_applications)
-from PyQt6.QtGui import QFont, QColor
+from core.electromagnetism import (solve_lorentz_force, solve_force_on_wire,
+                                  solve_parallel_wires, solve_emf_induction,
+                                  solve_transformer, solve_motor_torque)
+from PyQt6.QtGui import QFont
 from matplotlib.patches import Circle, Arrow, FancyArrowPatch
 import math
 
@@ -170,47 +171,33 @@ class BaseElectromagnetismTab(QWidget):
         """To be implemented by subclasses"""
         pass
 
-class ChargedParticlesTab(BaseElectromagnetismTab):
+class LorentzForceTab(BaseElectromagnetismTab):
     def __init__(self, parent=None):
-        super().__init__("Charged Particles & Fields", parent)
+        super().__init__("Lorentz Force", parent)
     
     def create_input_fields(self, layout):
         units = {
-            'E': ["N/C", "V/m"],
-            'V': ["V"],
-            'd': ["m"],
-            'q': ["C", "e"],
             'F': ["N"],
-            'B': ["T"],
+            'q': ["C", "e"],
+            'E': ["N/C", "V/m"],
             'v': ["m/s"],
-            'theta': ["°"],
-            'r': ["m"],
-            'm': ["kg"],
-            'work': ["J"],
-            'K': ["J"],
-            'U': ["J"]
+            'B': ["T"],
+            'theta': ["°"]
         }
         
         symbols = {
-            'E': "Electric field (E)",
-            'V': "Potential difference (V)",
-            'd': "Distance (d)",
-            'q': "Charge (q)",
             'F': "Force (F)",
-            'B': "Magnetic field (B)",
+            'q': "Charge (q)",
+            'E': "Electric field (E)",
             'v': "Velocity (v)",
-            'theta': "Angle (θ)",
-            'r': "Radius (r)",
-            'm': "Mass (m)",
-            'work': "Work (W)",
-            'K': "Kinetic energy (K)",
-            'U': "Potential energy (U)"
+            'B': "Magnetic field (B)",
+            'theta': "Angle (θ)"
         }
         
         self.inputs = {}
         self.unit_combos = {}
         
-        for var in ['E', 'V', 'd', 'q', 'F', 'B', 'v', 'theta', 'r', 'm', 'work', 'K', 'U']:
+        for var in ['F', 'q', 'E', 'v', 'B', 'theta']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))
@@ -225,10 +212,10 @@ class ChargedParticlesTab(BaseElectromagnetismTab):
         
         # Convert units
         if values.get('q') is not None and self.unit_combos['q'].currentText() == "e":
-            values['q'] = values['q'] * self.e_charge
+            values['q'] = values['q'] * 1.602e-19  # Elementary charge
             
         try:
-            result = solve_charged_particles(**values)
+            result = solve_lorentz_force(**values)
             self.last_result = result
             
             # Display results
@@ -253,7 +240,7 @@ class ChargedParticlesTab(BaseElectromagnetismTab):
         
         # Plot electric field if available
         if result.get('E') is not None:
-            x = np.linspace(-5, 5, 10)
+            x = np.linspace(-3, 3, 10)
             y = np.zeros_like(x)
             u = np.zeros_like(x)
             v = np.ones_like(x) * result['E']
@@ -261,60 +248,58 @@ class ChargedParticlesTab(BaseElectromagnetismTab):
         
         # Plot magnetic field if available
         if result.get('B') is not None:
-            circle = plt.Circle((0, 0), 0.5, fill=False, color='b', label='Magnetic Field')
+            circle = plt.Circle((0, 0), 1, fill=False, color='b', label='Magnetic Field')
             self.ax.add_artist(circle)
         
-        # Plot particle trajectory if available
-        if result.get('r') is not None and result.get('v') is not None:
-            theta = np.linspace(0, 2*np.pi, 100)
-            x = result['r'] * np.cos(theta)
-            y = result['r'] * np.sin(theta)
-            self.ax.plot(x, y, 'g-', label='Particle Path')
+        # Plot particle velocity if available
+        if result.get('v') is not None:
+            theta = math.radians(result.get('theta', 0))
+            vx = result['v'] * math.cos(theta)
+            vy = result['v'] * math.sin(theta)
+            self.ax.arrow(0, 0, vx, vy, head_width=0.2, head_length=0.2, 
+                         fc='g', ec='g', label='Velocity')
         
-        self.ax.set_xlim(-5, 5)
-        self.ax.set_ylim(-5, 5)
+        # Plot force if available
+        if result.get('F') is not None:
+            self.ax.arrow(0, 0, 0, 1, head_width=0.2, head_length=0.2, 
+                         fc='m', ec='m', label='Force')
+        
+        self.ax.set_xlim(-4, 4)
+        self.ax.set_ylim(-4, 4)
         self.ax.set_aspect('equal')
         self.ax.set_xlabel('Position (m)')
         self.ax.set_ylabel('Position (m)')
-        self.ax.set_title('Charged Particle in Fields')
+        self.ax.set_title('Lorentz Force Visualization')
         self.ax.legend()
         self.ax.grid(True)
         
         self.canvas.draw()
 
-class MotorEffectTab(BaseElectromagnetismTab):
+class ForceOnWireTab(BaseElectromagnetismTab):
     def __init__(self, parent=None):
-        super().__init__("Motor Effect", parent)
+        super().__init__("Force on Current-Carrying Wire", parent)
     
     def create_input_fields(self, layout):
         units = {
             'F': ["N"],
             'I': ["A"],
-            'l': ["m"],
+            'L': ["m"],
             'B': ["T"],
-            'theta': ["°"],
-            'F_per_length': ["N/m"],
-            'I1': ["A"],
-            'I2': ["A"],
-            'r': ["m"]
+            'theta': ["°"]
         }
         
         symbols = {
             'F': "Force (F)",
             'I': "Current (I)",
-            'l': "Length (l)",
+            'L': "Length (L)",
             'B': "Magnetic field (B)",
-            'theta': "Angle (θ)",
-            'F_per_length': "Force per length",
-            'I1': "Current 1 (I₁)",
-            'I2': "Current 2 (I₂)",
-            'r': "Separation (r)"
+            'theta': "Angle (θ)"
         }
         
         self.inputs = {}
         self.unit_combos = {}
         
-        for var in ['F', 'I', 'l', 'B', 'theta', 'F_per_length', 'I1', 'I2', 'r']:
+        for var in ['F', 'I', 'L', 'B', 'theta']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))
@@ -328,7 +313,7 @@ class MotorEffectTab(BaseElectromagnetismTab):
         values = self.get_input_values()
         
         try:
-            result = solve_motor_effect(**values)
+            result = solve_force_on_wire(**values)
             self.last_result = result
             
             # Display results
@@ -351,48 +336,124 @@ class MotorEffectTab(BaseElectromagnetismTab):
         self.ax.clear()
         self.update_plot_theme()
         
-        # Plot current-carrying wire in magnetic field
-        if result.get('I') is not None and result.get('B') is not None:
-            # Wire
-            self.ax.plot([-3, 3], [0, 0], 'k-', linewidth=3, label='Conductor')
-            
-            # Magnetic field
+        # Wire representation
+        self.ax.plot([-3, 3], [0, 0], 'k-', linewidth=3, label='Wire')
+        
+        # Magnetic field
+        if result.get('B') is not None:
             x, y = np.meshgrid(np.linspace(-3, 3, 5), np.linspace(-1, 1, 3))
             self.ax.quiver(x, y, np.zeros_like(x), np.ones_like(y)*0.5, 
                           scale=10, color='b', label='Magnetic Field')
-            
-            # Force direction
-            if result.get('F') is not None:
-                self.ax.arrow(0, 0, 0, 1, head_width=0.2, head_length=0.2, 
-                             fc='r', ec='r', label='Force')
         
-        # Plot parallel wires if data available
-        if result.get('I1') is not None and result.get('I2') is not None:
-            self.ax.plot([-3, 3], [-0.5, -0.5], 'k-', linewidth=2, label='Wire 1')
-            self.ax.plot([-3, 3], [0.5, 0.5], 'k-', linewidth=2, label='Wire 2')
-            
-            if result.get('F_per_length') is not None:
-                # Show attractive/repulsive force
-                direction = 1 if (result['I1'] * result['I2']) > 0 else -1
-                self.ax.arrow(0, -0.5, 0, direction*0.3, head_width=0.2, head_length=0.1, 
-                             fc='r', ec='r', label='Force')
-                self.ax.arrow(0, 0.5, 0, -direction*0.3, head_width=0.2, head_length=0.1, 
-                             fc='r', ec='r')
+        # Force direction
+        if result.get('F') is not None:
+            direction = 1 if result['F'] > 0 else -1
+            self.ax.arrow(0, 0, 0, direction, head_width=0.2, head_length=0.2, 
+                         fc='r', ec='r', label='Force')
         
         self.ax.set_xlim(-4, 4)
         self.ax.set_ylim(-2, 2)
         self.ax.set_aspect('equal')
-        self.ax.set_xlabel('Position')
-        self.ax.set_ylabel('Position')
-        self.ax.set_title('Motor Effect Visualization')
+        self.ax.set_xlabel('Position (m)')
+        self.ax.set_ylabel('Position (m)')
+        self.ax.set_title('Force on Current-Carrying Wire')
         self.ax.legend()
         self.ax.grid(True)
         
         self.canvas.draw()
 
-class InductionTab(BaseElectromagnetismTab):
+class ParallelWiresTab(BaseElectromagnetismTab):
     def __init__(self, parent=None):
-        super().__init__("Electromagnetic Induction", parent)
+        super().__init__("Force Between Parallel Wires", parent)
+    
+    def create_input_fields(self, layout):
+        units = {
+            'F_per_length': ["N/m"],
+            'I1': ["A"],
+            'I2': ["A"],
+            'r': ["m"]
+        }
+        
+        symbols = {
+            'F_per_length': "Force per length (F/l)",
+            'I1': "Current 1 (I₁)",
+            'I2': "Current 2 (I₂)",
+            'r': "Separation (r)"
+        }
+        
+        self.inputs = {}
+        self.unit_combos = {}
+        
+        for var in ['F_per_length', 'I1', 'I2', 'r']:
+            self.inputs[var] = QLineEdit()
+            unit_combo = QComboBox()
+            unit_combo.addItems(units.get(var, [""]))
+            hbox = QHBoxLayout()
+            hbox.addWidget(self.inputs[var])
+            hbox.addWidget(unit_combo)
+            layout.addRow(symbols[var], hbox)
+            self.unit_combos[var] = unit_combo
+    
+    def calculate(self):
+        values = self.get_input_values()
+        
+        try:
+            result = solve_parallel_wires(**values)
+            self.last_result = result
+            
+            # Display results
+            result_text = "📊 Results:\n"
+            for var, val in result.items():
+                if val is not None:
+                    result_text += f"• {var}: {val:.3e} {self.unit_combos[var].currentText()}\n"
+            
+            self.result_display.setText(result_text)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+    
+    def plot(self):
+        if not self.last_result:
+            QMessageBox.warning(self, "No Data", "Please calculate first before plotting.")
+            return
+        
+        result = self.last_result
+        self.ax.clear()
+        self.update_plot_theme()
+        
+        # Wire positions
+        r = result.get('r', 1)
+        self.ax.plot([-3, 3], [-r/2, -r/2], 'b-', linewidth=2, label='Wire 1')
+        self.ax.plot([-3, 3], [r/2, r/2], 'r-', linewidth=2, label='Wire 2')
+        
+        # Current directions (assume same direction if force is attractive)
+        if result.get('F_per_length') is not None:
+            direction = 1 if result['F_per_length'] > 0 else -1
+            self.ax.arrow(-2, -r/2, 0, -0.1*direction, head_width=0.1, head_length=0.1, fc='b', ec='b')
+            self.ax.arrow(-2, r/2, 0, 0.1*direction, head_width=0.1, head_length=0.1, fc='r', ec='r')
+        
+        # Force direction
+        if result.get('F_per_length') is not None:
+            direction = 1 if result['F_per_length'] > 0 else -1
+            self.ax.arrow(0, -r/2, 0, direction*0.3, head_width=0.2, head_length=0.1, 
+                         fc='g', ec='g', label='Force')
+            self.ax.arrow(0, r/2, 0, -direction*0.3, head_width=0.2, head_length=0.1, 
+                         fc='g', ec='g')
+        
+        self.ax.set_xlim(-4, 4)
+        self.ax.set_ylim(-max(2, r+0.5), max(2, r+0.5))
+        self.ax.set_aspect('equal')
+        self.ax.set_xlabel('Position (m)')
+        self.ax.set_ylabel('Position (m)')
+        self.ax.set_title('Force Between Parallel Wires')
+        self.ax.legend()
+        self.ax.grid(True)
+        
+        self.canvas.draw()
+
+class EMFInductionTab(BaseElectromagnetismTab):
+    def __init__(self, parent=None):
+        super().__init__("EMF Induction", parent)
     
     def create_input_fields(self, layout):
         units = {
@@ -403,13 +464,7 @@ class InductionTab(BaseElectromagnetismTab):
             'B': ["T"],
             'A': ["m²"],
             'theta': ["°"],
-            'phi': ["Wb"],
-            'V_p': ["V"],
-            'V_s': ["V"],
-            'N_p': [""],
-            'N_s': [""],
-            'I_p': ["A"],
-            'I_s': ["A"]
+            'phi': ["Wb"]
         }
         
         symbols = {
@@ -420,7 +475,92 @@ class InductionTab(BaseElectromagnetismTab):
             'B': "Magnetic field (B)",
             'A': "Area (A)",
             'theta': "Angle (θ)",
-            'phi': "Magnetic flux (Φ)",
+            'phi': "Magnetic flux (Φ)"
+        }
+        
+        self.inputs = {}
+        self.unit_combos = {}
+        
+        for var in ['emf', 'N', 'delta_phi', 'delta_t', 'B', 'A', 'theta', 'phi']:
+            self.inputs[var] = QLineEdit()
+            unit_combo = QComboBox()
+            unit_combo.addItems(units.get(var, [""]))
+            hbox = QHBoxLayout()
+            hbox.addWidget(self.inputs[var])
+            hbox.addWidget(unit_combo)
+            layout.addRow(symbols[var], hbox)
+            self.unit_combos[var] = unit_combo
+    
+    def calculate(self):
+        values = self.get_input_values()
+        
+        try:
+            result = solve_emf_induction(**values)
+            self.last_result = result
+            
+            # Display results
+            result_text = "📊 Results:\n"
+            for var, val in result.items():
+                if val is not None:
+                    result_text += f"• {var}: {val:.3e} {self.unit_combos[var].currentText()}\n"
+            
+            self.result_display.setText(result_text)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+    
+    def plot(self):
+        if not self.last_result:
+            QMessageBox.warning(self, "No Data", "Please calculate first before plotting.")
+            return
+        
+        result = self.last_result
+        self.ax.clear()
+        self.update_plot_theme()
+        
+        # Coil representation
+        coil_x = np.linspace(-2, 2, 100)
+        coil_y = 0.5 * np.sin(coil_x * np.pi)
+        self.ax.plot(coil_x, coil_y, 'b-', linewidth=2, label='Coil')
+        
+        # Magnetic field if available
+        if result.get('B') is not None:
+            x, y = np.meshgrid(np.linspace(-2, 2, 5), np.linspace(-1, 1, 3))
+            self.ax.quiver(x, y, np.zeros_like(x), np.ones_like(y)*0.5, 
+                          scale=10, color='r', label='Magnetic Field')
+        
+        # Induced current direction if EMF available
+        if result.get('emf') is not None:
+            direction = -1 if result['emf'] > 0 else 1
+            self.ax.arrow(0, 0.7, direction*0.5, 0, head_width=0.1, head_length=0.2, 
+                         fc='g', ec='g', label='Induced Current')
+        
+        self.ax.set_xlim(-3, 3)
+        self.ax.set_ylim(-2, 2)
+        self.ax.set_aspect('equal')
+        self.ax.set_xlabel('Position (m)')
+        self.ax.set_ylabel('Position (m)')
+        self.ax.set_title('Electromagnetic Induction')
+        self.ax.legend()
+        self.ax.grid(True)
+        
+        self.canvas.draw()
+
+class TransformerTab(BaseElectromagnetismTab):
+    def __init__(self, parent=None):
+        super().__init__("Transformer Calculations", parent)
+    
+    def create_input_fields(self, layout):
+        units = {
+            'V_p': ["V"],
+            'V_s': ["V"],
+            'N_p': [""],
+            'N_s': [""],
+            'I_p': ["A"],
+            'I_s': ["A"]
+        }
+        
+        symbols = {
             'V_p': "Primary voltage (Vₚ)",
             'V_s': "Secondary voltage (Vₛ)",
             'N_p': "Primary turns (Nₚ)",
@@ -432,8 +572,7 @@ class InductionTab(BaseElectromagnetismTab):
         self.inputs = {}
         self.unit_combos = {}
         
-        for var in ['emf', 'N', 'delta_phi', 'delta_t', 'B', 'A', 'theta', 'phi', 
-                   'V_p', 'V_s', 'N_p', 'N_s', 'I_p', 'I_s']:
+        for var in ['V_p', 'V_s', 'N_p', 'N_s', 'I_p', 'I_s']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))
@@ -447,7 +586,7 @@ class InductionTab(BaseElectromagnetismTab):
         values = self.get_input_values()
         
         try:
-            result = solve_induction(**values)
+            result = solve_transformer(**values)
             self.last_result = result
             
             # Display results
@@ -470,53 +609,42 @@ class InductionTab(BaseElectromagnetismTab):
         self.ax.clear()
         self.update_plot_theme()
         
-        # Plot changing magnetic flux if available
-        if result.get('B') is not None and result.get('A') is not None:
-            # Coil
-            coil_x = np.linspace(-2, 2, 100)
-            coil_y = 0.5 * np.sin(coil_x * np.pi)
-            self.ax.plot(coil_x, coil_y, 'b-', linewidth=2, label='Coil')
-            
-            # Magnetic field lines
-            x, y = np.meshgrid(np.linspace(-2, 2, 5), np.linspace(-1, 1, 3))
-            self.ax.quiver(x, y, np.zeros_like(x), np.ones_like(y)*0.5, 
-                          scale=10, color='r', label='Magnetic Field')
-            
-            # Induced current direction if EMF available
-            if result.get('emf') is not None:
-                direction = -1 if result['emf'] > 0 else 1
-                self.ax.arrow(0, 0.7, direction*0.5, 0, head_width=0.1, head_length=0.2, 
-                             fc='g', ec='g', label='Induced Current')
+        # Primary coil
+        self.ax.plot([-1, -1], [-1, 1], 'b-', linewidth=3, label='Primary')
         
-        # Plot transformer if data available
-        if result.get('V_p') is not None and result.get('V_s') is not None:
-            # Primary coil
-            self.ax.plot([-1, -1], [-1, 1], 'b-', linewidth=3, label='Primary')
-            
-            # Secondary coil
-            self.ax.plot([1, 1], [-1, 1], 'r-', linewidth=3, label='Secondary')
-            
-            # Core
-            self.ax.plot([-1, 1], [0, 0], 'k-', linewidth=1)
-            
-            # Labels
+        # Secondary coil
+        self.ax.plot([1, 1], [-1, 1], 'r-', linewidth=3, label='Secondary')
+        
+        # Core
+        self.ax.plot([-1, 1], [0, 0], 'k-', linewidth=1)
+        
+        # Labels
+        if result.get('V_p') is not None:
             self.ax.text(-1.2, 1.2, f"{result['V_p']:.1f}V", color='b')
+        if result.get('V_s') is not None:
             self.ax.text(0.8, 1.2, f"{result['V_s']:.1f}V", color='r')
         
-        self.ax.set_xlim(-3, 3)
-        self.ax.set_ylim(-2, 2)
+        # Current directions if available
+        if result.get('I_p') is not None and result.get('I_s') is not None:
+            ip_dir = 1 if result['I_p'] > 0 else -1
+            is_dir = 1 if result['I_s'] > 0 else -1
+            self.ax.arrow(-1.2, 0.8, 0, -0.2*ip_dir, head_width=0.1, head_length=0.1, fc='b', ec='b')
+            self.ax.arrow(1.2, 0.8, 0, -0.2*is_dir, head_width=0.1, head_length=0.1, fc='r', ec='r')
+        
+        self.ax.set_xlim(-2, 2)
+        self.ax.set_ylim(-1.5, 1.5)
         self.ax.set_aspect('equal')
         self.ax.set_xlabel('Position')
         self.ax.set_ylabel('Position')
-        self.ax.set_title('Electromagnetic Induction')
+        self.ax.set_title('Transformer Operation')
         self.ax.legend()
         self.ax.grid(True)
         
         self.canvas.draw()
 
-class MotorApplicationsTab(BaseElectromagnetismTab):
+class MotorTorqueTab(BaseElectromagnetismTab):
     def __init__(self, parent=None):
-        super().__init__("Motor Applications", parent)
+        super().__init__("Motor Torque", parent)
     
     def create_input_fields(self, layout):
         units = {
@@ -525,11 +653,7 @@ class MotorApplicationsTab(BaseElectromagnetismTab):
             'I': ["A"],
             'A': ["m²"],
             'B': ["T"],
-            'theta': ["°"],
-            'back_emf': ["V"],
-            'omega': ["rad/s"],
-            'N': [""],
-            'phi': ["Wb"]
+            'theta': ["°"]
         }
         
         symbols = {
@@ -538,17 +662,13 @@ class MotorApplicationsTab(BaseElectromagnetismTab):
             'I': "Current (I)",
             'A': "Area (A)",
             'B': "Magnetic field (B)",
-            'theta': "Angle (θ)",
-            'back_emf': "Back EMF (ε)",
-            'omega': "Angular velocity (ω)",
-            'N': "Number of turns (N)",
-            'phi': "Magnetic flux (Φ)"
+            'theta': "Angle (θ)"
         }
         
         self.inputs = {}
         self.unit_combos = {}
         
-        for var in ['torque', 'n', 'I', 'A', 'B', 'theta', 'back_emf', 'omega', 'N', 'phi']:
+        for var in ['torque', 'n', 'I', 'A', 'B', 'theta']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))
@@ -562,7 +682,7 @@ class MotorApplicationsTab(BaseElectromagnetismTab):
         values = self.get_input_values()
         
         try:
-            result = solve_motor_applications(**values)
+            result = solve_motor_torque(**values)
             self.last_result = result
             
             # Display results
@@ -585,32 +705,31 @@ class MotorApplicationsTab(BaseElectromagnetismTab):
         self.ax.clear()
         self.update_plot_theme()
         
-        # Plot DC motor if torque available
+        # Stator magnets
+        self.ax.add_artist(plt.Circle((0, 0), 2, fill=False, color='b', linestyle='--', label='Stator'))
+        
+        # Rotor coil
+        angle = result.get('theta', 0)
+        angle_rad = math.radians(angle)
+        x1, y1 = 1.5 * math.cos(angle_rad), 1.5 * math.sin(angle_rad)
+        x2, y2 = -1.5 * math.cos(angle_rad), -1.5 * math.sin(angle_rad)
+        self.ax.plot([x1, x2], [y1, y2], 'r-', linewidth=3, label='Rotor')
+        
+        # Current direction
+        self.ax.arrow(x1*0.8, y1*0.8, (x2-x1)*0.2, (y2-y1)*0.2, 
+                     head_width=0.2, head_length=0.2, fc='k', ec='k', label='Current')
+        
+        # Torque direction if available
         if result.get('torque') is not None:
-            # Stator magnets
-            self.ax.add_artist(plt.Circle((0, 0), 2, fill=False, color='b', linestyle='--', label='Stator'))
-            
-            # Rotor coil
-            angle = result.get('theta', 0)
-            angle_rad = math.radians(angle)
-            x1, y1 = 1.5 * math.cos(angle_rad), 1.5 * math.sin(angle_rad)
-            x2, y2 = -1.5 * math.cos(angle_rad), -1.5 * math.sin(angle_rad)
-            self.ax.plot([x1, x2], [y1, y2], 'r-', linewidth=3, label='Rotor')
-            
-            # Current direction
-            self.ax.arrow(x1*0.8, y1*0.8, (x2-x1)*0.2, (y2-y1)*0.2, 
-                         head_width=0.2, head_length=0.2, fc='k', ec='k', label='Current')
-            
-            # Torque direction
-            if result['torque'] > 0:
-                self.ax.arrow(0, 0, -y1*0.5, x1*0.5, 
-                             head_width=0.2, head_length=0.2, fc='g', ec='g', label='Torque')
+            torque_dir = 1 if result['torque'] > 0 else -1
+            self.ax.arrow(0, 0, -y1*0.5*torque_dir, x1*0.5*torque_dir, 
+                         head_width=0.2, head_length=0.2, fc='g', ec='g', label='Torque')
         
         self.ax.set_xlim(-3, 3)
         self.ax.set_ylim(-3, 3)
         self.ax.set_aspect('equal')
-        self.ax.set_xlabel('Position')
-        self.ax.set_ylabel('Position')
+        self.ax.set_xlabel('Position (m)')
+        self.ax.set_ylabel('Position (m)')
         self.ax.set_title('DC Motor Operation')
         self.ax.legend()
         self.ax.grid(True)
@@ -647,15 +766,19 @@ class ElectromagnetismTab(QWidget):
         self.tabs = QTabWidget()
         
         # Create and add sub-tabs
-        self.charged_particles_tab = ChargedParticlesTab()
-        self.motor_effect_tab = MotorEffectTab()
-        self.induction_tab = InductionTab()
-        self.motor_applications_tab = MotorApplicationsTab()
+        self.lorentz_force_tab = LorentzForceTab()
+        self.force_on_wire_tab = ForceOnWireTab()
+        self.parallel_wires_tab = ParallelWiresTab()
+        self.emf_induction_tab = EMFInductionTab()
+        self.transformer_tab = TransformerTab()
+        self.motor_torque_tab = MotorTorqueTab()
         
-        self.tabs.addTab(self.charged_particles_tab, "Charged Particles")
-        self.tabs.addTab(self.motor_effect_tab, "Motor Effect")
-        self.tabs.addTab(self.induction_tab, "Electromagnetic Induction")
-        self.tabs.addTab(self.motor_applications_tab, "Motor Applications")
+        self.tabs.addTab(self.lorentz_force_tab, "Lorentz Force")
+        self.tabs.addTab(self.force_on_wire_tab, "Force on Wire")
+        self.tabs.addTab(self.parallel_wires_tab, "Parallel Wires")
+        self.tabs.addTab(self.emf_induction_tab, "EMF Induction")
+        self.tabs.addTab(self.transformer_tab, "Transformer")
+        self.tabs.addTab(self.motor_torque_tab, "Motor Torque")
         
         layout.addWidget(self.tabs)
         self.setLayout(layout)
@@ -664,4 +787,4 @@ class ElectromagnetismTab(QWidget):
         return_btn.clicked.connect(self.return_to_menu)
     
     def return_to_menu(self):
-        self.parent().parent().return_to_menu() 
+        self.parent().parent().return_to_menu()
