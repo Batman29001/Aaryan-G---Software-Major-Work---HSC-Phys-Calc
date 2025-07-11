@@ -101,45 +101,52 @@ class WaveSolver:
             self.solutions['v_medium'] = self.speed_of_sound
             changed = True
         
-        # Basic Doppler effect (simplified for head-on approach)
-        if self.solutions['f_observed'] is None:
-            if all(k in self.solutions and self.solutions[k] is not None 
-                 for k in ['f_source', 'v_medium']):
-                
-                # If source is moving directly toward observer
-                if (self.solutions['v_source'] is not None and 
-                    (self.solutions['θ_source'] is None or 
-                     math.isclose(self.solutions['θ_source'], 0, abs_tol=1e-6))):
-                    
-                    self.solutions['f_observed'] = (
-                        (self.solutions['v_medium'] / 
-                         (self.solutions['v_medium'] - self.solutions['v_source'])) * 
-                        self.solutions['f_source']
-                    )
+        v_medium = self.solutions['v_medium']
+        f_source = self.solutions['f_source']
+        f_observed = self.solutions['f_observed']
+        v_source = self.solutions['v_source']
+        v_observer = self.solutions['v_observer']
+        θ_source = self.solutions['θ_source']
+        θ_observer = self.solutions['θ_observer']
+        
+        # 1. Calculate f_observed if possible (existing logic)
+        if f_observed is None:
+            if f_source is not None and v_medium is not None:
+                # Source moving directly toward observer
+                if v_source is not None and (θ_source is None or math.isclose(θ_source, 0, abs_tol=1e-6)):
+                    self.solutions['f_observed'] = (v_medium / (v_medium - v_source)) * f_source
                     changed = True
                 
-                # If observer is moving directly toward source
-                elif (self.solutions['v_observer'] is not None and 
-                      (self.solutions['θ_observer'] is None or 
-                       math.isclose(self.solutions['θ_observer'], 0, abs_tol=1e-6))):
-                    
-                    self.solutions['f_observed'] = (
-                        ((self.solutions['v_medium'] + self.solutions['v_observer']) / 
-                         self.solutions['v_medium']) * 
-                        self.solutions['f_source']
-                    )
+                # Observer moving directly toward source
+                elif v_observer is not None and (θ_observer is None or math.isclose(θ_observer, 0, abs_tol=1e-6)):
+                    self.solutions['f_observed'] = ((v_medium + v_observer) / v_medium) * f_source
                     changed = True
                 
                 # General case with angles
-                elif (self.solutions['v_source'] is not None and 
-                      self.solutions['θ_source'] is not None):
-                    
+                elif v_source is not None and θ_source is not None:
                     self.solutions['f_observed'] = (
-                        (self.solutions['v_medium'] / 
-                         (self.solutions['v_medium'] - 
-                          self.solutions['v_source'] * math.cos(math.radians(self.solutions['θ_source'])))) * 
-                        self.solutions['f_source']
+                        (v_medium / (v_medium - v_source * math.cos(math.radians(θ_source)))) * f_source
                     )
+                    changed = True
+        
+        # 2. Calculate v_source if possible (reverse Doppler)
+        if v_source is None:
+            # Only handle head-on approach θ_source = 0 or None for simplicity
+            if (f_observed is not None and f_source is not None and v_medium is not None and
+                (θ_source is None or math.isclose(θ_source, 0, abs_tol=1e-6))):
+                candidate_v_source = v_medium * (1 - f_source / f_observed)
+                if abs(candidate_v_source) < 1.5 * v_medium:  # sanity check
+                    self.solutions['v_source'] = candidate_v_source
+                    changed = True
+        
+        # 3. Calculate v_observer if possible (reverse Doppler)
+        if v_observer is None:
+            # Only handle head-on approach θ_observer = 0 or None
+            if (f_observed is not None and f_source is not None and v_medium is not None and
+                (θ_observer is None or math.isclose(θ_observer, 0, abs_tol=1e-6))):
+                candidate_v_observer = v_medium * (f_observed / f_source - 1)
+                if abs(candidate_v_observer) < 1.5 * v_medium:  # sanity check
+                    self.solutions['v_observer'] = candidate_v_observer
                     changed = True
         
         return changed
@@ -201,5 +208,4 @@ def solve_sound_waves(**kwargs) -> Dict[str, float]:
 def solve_light_properties(**kwargs) -> Dict[str, float]:
     """Convenience function for light properties"""
     solver = WaveSolver()
-    
     return solver.solve('light_properties', **kwargs)

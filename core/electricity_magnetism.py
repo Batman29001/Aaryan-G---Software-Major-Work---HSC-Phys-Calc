@@ -1,4 +1,3 @@
-# core/electricity_magnetism.py
 import math
 from typing import Dict, Optional
 
@@ -7,14 +6,14 @@ class EMSolver:
         self.permittivity = 8.854e-12  # ε₀ in F/m
         self.permeability = 4 * math.pi * 1e-7  # μ₀ in N/A²
         self.solutions = {}
-        
+
         # Ordered by dependency
         self.equations = [
             self._solve_electrostatics,
             self._solve_circuits,
             self._solve_magnetism
         ]
-    
+
     def solve(self, category: str, **kwargs) -> Dict[str, float]:
         """Main solver that handles all EM calculations"""
         # Initialize all possible variables with None
@@ -27,12 +26,12 @@ class EMSolver:
             # Magnetism
             'B': None, 'I_wire': None, 'r_wire': None, 'N': None, 'L': None, 'type': None
         }
-        
+
         # Set provided values
         for k, v in kwargs.items():
             if k in self.solutions:
                 self.solutions[k] = v
-        
+
         # Keep solving until no more progress can be made
         changed = True
         while changed:
@@ -40,133 +39,191 @@ class EMSolver:
             for equation in self.equations:
                 if equation.__name__ == f"_solve_{category}":
                     changed |= equation()
-        
+
         # Return only calculated values (remove None values)
         return {k: v for k, v in self.solutions.items() if v is not None}
-    
+
     def _solve_electrostatics(self) -> bool:
-        """Solve electrostatics equations"""
+        """Solve electrostatics equations with as many derivations as possible"""
         changed = False
-        
-        # Force on charge: F = qE
+
+        # F = qE (Force on charge)
         if self.solutions['F'] is None:
             if self.solutions['q'] is not None and self.solutions['E'] is not None:
                 self.solutions['F'] = self.solutions['q'] * self.solutions['E']
                 changed = True
-        
-        # Electric field: E = V/d
+        if self.solutions['q'] is None:
+            if self.solutions['F'] is not None and self.solutions['E'] is not None and self.solutions['E'] != 0:
+                self.solutions['q'] = self.solutions['F'] / self.solutions['E']
+                changed = True
         if self.solutions['E'] is None:
-            if self.solutions['V'] is not None and self.solutions['d'] is not None:
+            if self.solutions['F'] is not None and self.solutions['q'] is not None and self.solutions['q'] != 0:
+                self.solutions['E'] = self.solutions['F'] / self.solutions['q']
+                changed = True
+
+        # E = V/d (Electric field)
+        if self.solutions['E'] is None:
+            if self.solutions['V'] is not None and self.solutions['d'] is not None and self.solutions['d'] != 0:
                 self.solutions['E'] = self.solutions['V'] / self.solutions['d']
                 changed = True
-        
-        # Potential difference: V = Ed
         if self.solutions['V'] is None:
             if self.solutions['E'] is not None and self.solutions['d'] is not None:
                 self.solutions['V'] = self.solutions['E'] * self.solutions['d']
                 changed = True
-        
+        if self.solutions['d'] is None:
+            if self.solutions['V'] is not None and self.solutions['E'] is not None and self.solutions['E'] != 0:
+                self.solutions['d'] = self.solutions['V'] / self.solutions['E']
+                changed = True
+
+        # TODO: Potentially add energy U, work W relations if you want later
+
         return changed
-    
+
     def _solve_circuits(self) -> bool:
-        """Solve electric circuit equations"""
+        """Solve electric circuit equations with max derivations"""
         changed = False
-        
+
         # Ohm's Law: V = IR
         if self.solutions['V_circuit'] is None:
             if self.solutions['I'] is not None and self.solutions['R'] is not None:
                 self.solutions['V_circuit'] = self.solutions['I'] * self.solutions['R']
                 changed = True
-        
         if self.solutions['I'] is None:
-            if self.solutions['V_circuit'] is not None and self.solutions['R'] is not None:
+            if self.solutions['V_circuit'] is not None and self.solutions['R'] is not None and self.solutions['R'] != 0:
                 self.solutions['I'] = self.solutions['V_circuit'] / self.solutions['R']
                 changed = True
-        
         if self.solutions['R'] is None:
-            if self.solutions['V_circuit'] is not None and self.solutions['I'] is not None:
+            if self.solutions['V_circuit'] is not None and self.solutions['I'] is not None and self.solutions['I'] != 0:
                 self.solutions['R'] = self.solutions['V_circuit'] / self.solutions['I']
                 changed = True
-        
+
         # Power: P = VI = I²R = V²/R
         if self.solutions['P'] is None:
             if self.solutions['V_circuit'] is not None and self.solutions['I'] is not None:
                 self.solutions['P'] = self.solutions['V_circuit'] * self.solutions['I']
                 changed = True
             elif self.solutions['I'] is not None and self.solutions['R'] is not None:
-                self.solutions['P'] = (self.solutions['I']**2) * self.solutions['R']
+                self.solutions['P'] = (self.solutions['I'] ** 2) * self.solutions['R']
                 changed = True
-            elif self.solutions['V_circuit'] is not None and self.solutions['R'] is not None:
-                self.solutions['P'] = (self.solutions['V_circuit']**2) / self.solutions['R']
+            elif self.solutions['V_circuit'] is not None and self.solutions['R'] is not None and self.solutions['R'] != 0:
+                self.solutions['P'] = (self.solutions['V_circuit'] ** 2) / self.solutions['R']
                 changed = True
-        
+        if self.solutions['V_circuit'] is None:
+            if self.solutions['P'] is not None and self.solutions['I'] is not None and self.solutions['I'] != 0:
+                self.solutions['V_circuit'] = self.solutions['P'] / self.solutions['I']
+                changed = True
+        if self.solutions['I'] is None:
+            if self.solutions['P'] is not None and self.solutions['V_circuit'] is not None and self.solutions['V_circuit'] != 0:
+                self.solutions['I'] = self.solutions['P'] / self.solutions['V_circuit']
+                changed = True
+        if self.solutions['R'] is None:
+            if self.solutions['V_circuit'] is not None and self.solutions['P'] is not None and self.solutions['P'] != 0:
+                self.solutions['R'] = (self.solutions['V_circuit'] ** 2) / self.solutions['P']
+                changed = True
+            elif self.solutions['P'] is not None and self.solutions['I'] is not None and self.solutions['I'] != 0:
+                self.solutions['R'] = self.solutions['P'] / (self.solutions['I'] ** 2)
+                changed = True
+
         # Energy: E = Pt = VIt
         if self.solutions['E_energy'] is None:
             if self.solutions['P'] is not None and self.solutions['t'] is not None:
                 self.solutions['E_energy'] = self.solutions['P'] * self.solutions['t']
                 changed = True
-            elif all(k in self.solutions and self.solutions[k] is not None 
-                     for k in ['V_circuit', 'I', 't']):
-                self.solutions['E_energy'] = (
-                    self.solutions['V_circuit'] * self.solutions['I'] * self.solutions['t'])
+            elif all(k in self.solutions and self.solutions[k] is not None for k in ['V_circuit', 'I', 't']):
+                self.solutions['E_energy'] = self.solutions['V_circuit'] * self.solutions['I'] * self.solutions['t']
                 changed = True
-        
+        if self.solutions['P'] is None:
+            if self.solutions['E_energy'] is not None and self.solutions['t'] is not None and self.solutions['t'] != 0:
+                self.solutions['P'] = self.solutions['E_energy'] / self.solutions['t']
+                changed = True
+        if self.solutions['t'] is None:
+            if self.solutions['E_energy'] is not None and self.solutions['P'] is not None and self.solutions['P'] != 0:
+                self.solutions['t'] = self.solutions['E_energy'] / self.solutions['P']
+                changed = True
+
         # Series resistance: R_series = R1 + R2
         if self.solutions['R_series'] is None:
-            if all(k in self.solutions and self.solutions[k] is not None 
-                     for k in ['R1', 'R2']):
+            if self.solutions['R1'] is not None and self.solutions['R2'] is not None:
                 self.solutions['R_series'] = self.solutions['R1'] + self.solutions['R2']
                 changed = True
-        
+        if self.solutions['R1'] is None:
+            if self.solutions['R_series'] is not None and self.solutions['R2'] is not None:
+                self.solutions['R1'] = self.solutions['R_series'] - self.solutions['R2']
+                changed = True
+        if self.solutions['R2'] is None:
+            if self.solutions['R_series'] is not None and self.solutions['R1'] is not None:
+                self.solutions['R2'] = self.solutions['R_series'] - self.solutions['R1']
+                changed = True
+
         # Parallel resistance: 1/R_parallel = 1/R1 + 1/R2
         if self.solutions['R_parallel'] is None:
-            if all(k in self.solutions and self.solutions[k] is not None 
-                     for k in ['R1', 'R2']):
-                self.solutions['R_parallel'] = 1 / (1/self.solutions['R1'] + 1/self.solutions['R2'])
+            if self.solutions['R1'] is not None and self.solutions['R2'] is not None and self.solutions['R1'] != 0 and self.solutions['R2'] != 0:
+                self.solutions['R_parallel'] = 1 / (1 / self.solutions['R1'] + 1 / self.solutions['R2'])
                 changed = True
-        
+        if self.solutions['R1'] is None:
+            if self.solutions['R_parallel'] is not None and self.solutions['R2'] is not None and self.solutions['R_parallel'] != 0 and self.solutions['R2'] != 0:
+                try:
+                    self.solutions['R1'] = 1 / (1 / self.solutions['R_parallel'] - 1 / self.solutions['R2'])
+                    changed = True
+                except ZeroDivisionError:
+                    pass
+        if self.solutions['R2'] is None:
+            if self.solutions['R_parallel'] is not None and self.solutions['R1'] is not None and self.solutions['R_parallel'] != 0 and self.solutions['R1'] != 0:
+                try:
+                    self.solutions['R2'] = 1 / (1 / self.solutions['R_parallel'] - 1 / self.solutions['R1'])
+                    changed = True
+                except ZeroDivisionError:
+                    pass
+
         return changed
-    
+
     def _solve_magnetism(self) -> bool:
         changed = False
-    
-        # Straight wire case
+
+        # Straight wire case: B = μ₀I / (2πr)
         if self.solutions.get('r_wire') is not None and self.solutions.get('I_wire') is not None:
-            if self.solutions.get('B') is None:
-                self.solutions['B'] = (self.permeability * self.solutions['I_wire']) / \
-                                    (2 * math.pi * self.solutions['r_wire'])
+            if self.solutions.get('B') is None and self.solutions['r_wire'] != 0:
+                self.solutions['B'] = (self.permeability * self.solutions['I_wire']) / (2 * math.pi * self.solutions['r_wire'])
                 self.solutions['type'] = 'straight_wire'
                 changed = True
-            elif self.solutions.get('I_wire') is None and self.solutions.get('B') is not None:
-                self.solutions['I_wire'] = (self.solutions['B'] * 2 * math.pi * self.solutions['r_wire']) / \
-                                        self.permeability
+            if self.solutions.get('I_wire') is None and self.solutions.get('B') is not None:
+                self.solutions['I_wire'] = (self.solutions['B'] * 2 * math.pi * self.solutions['r_wire']) / self.permeability
                 self.solutions['type'] = 'straight_wire'
                 changed = True
-        
-        # Solenoid case
-        elif self.solutions.get('N') is not None and self.solutions.get('L') is not None:
-            if self.solutions.get('B') is None and self.solutions.get('I_wire') is not None:
-                self.solutions['B'] = (self.permeability * self.solutions['N'] * \
-                                    self.solutions['I_wire']) / self.solutions['L']
+            if self.solutions.get('r_wire') is None and self.solutions.get('B') is not None and self.solutions.get('I_wire') is not None and self.solutions['I_wire'] != 0:
+                self.solutions['r_wire'] = (self.permeability * self.solutions['I_wire']) / (2 * math.pi * self.solutions['B'])
+                self.solutions['type'] = 'straight_wire'
+                changed = True
+
+        # Solenoid case: B = μ₀NI/L
+        if self.solutions.get('N') is not None and self.solutions.get('L') is not None:
+            if self.solutions.get('B') is None and self.solutions.get('I_wire') is not None and self.solutions['L'] != 0:
+                self.solutions['B'] = (self.permeability * self.solutions['N'] * self.solutions['I_wire']) / self.solutions['L']
                 self.solutions['type'] = 'solenoid'
                 changed = True
-            elif self.solutions.get('I_wire') is None and self.solutions.get('B') is not None:
-                self.solutions['I_wire'] = (self.solutions['B'] * self.solutions['L']) / \
-                                        (self.permeability * self.solutions['N'])
+            if self.solutions.get('I_wire') is None and self.solutions.get('B') is not None and self.solutions.get('N') is not None and self.solutions['N'] != 0:
+                self.solutions['I_wire'] = (self.solutions['B'] * self.solutions['L']) / (self.permeability * self.solutions['N'])
                 self.solutions['type'] = 'solenoid'
                 changed = True
-    
-            return changed
+            if self.solutions.get('L') is None and self.solutions.get('B') is not None and self.solutions.get('N') is not None and self.solutions.get('I_wire') is not None and self.solutions['N'] != 0 and self.solutions['I_wire'] != 0:
+                self.solutions['L'] = (self.permeability * self.solutions['N'] * self.solutions['I_wire']) / self.solutions['B']
+                self.solutions['type'] = 'solenoid'
+                changed = True
+
+        return changed
+
 
 def solve_electrostatics(**kwargs) -> Dict[str, float]:
     """Convenience function for electrostatics"""
     solver = EMSolver()
     return solver.solve('electrostatics', **kwargs)
 
+
 def solve_circuits(**kwargs) -> Dict[str, float]:
     """Convenience function for electric circuits"""
     solver = EMSolver()
     return solver.solve('circuits', **kwargs)
+
 
 def solve_magnetism(**kwargs) -> Dict[str, float]:
     """Convenience function for magnetism"""
