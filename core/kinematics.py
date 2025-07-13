@@ -1,8 +1,48 @@
-def solve_kinematics(u=None, v=None, a=None, s=None, t=None):
+from typing import Dict, Optional, Union, Tuple
+from enum import Enum, auto
+import math
+
+class KinematicsErrorType(Enum):
+    INVALID_INPUT = auto()
+    MISSING_REQUIRED = auto()
+    DIVISION_BY_ZERO = auto()
+    NEGATIVE_VALUE = auto()
+    INVALID_RANGE = auto()
+    PHYSICS_IMPOSSIBLE = auto()
+    UNIT_CONVERSION = auto()
+
+class KinematicsError(Exception):
+    """Custom exception class for kinematics calculation errors"""
+    def __init__(self, error_type: KinematicsErrorType, message: str, variable: Optional[str] = None):
+        self.error_type = error_type
+        self.message = message
+        self.variable = variable
+        super().__init__(f"{message} (Variable: {variable})" if variable else message)
+
+def solve_kinematics(u: Optional[float] = None, 
+                    v: Optional[float] = None, 
+                    a: Optional[float] = None, 
+                    s: Optional[float] = None, 
+                    t: Optional[float] = None,
+                    units: Optional[Dict[str, str]] = None) -> Dict[str, Union[float, Tuple[float, float], None]]:
     """
-    units: Dict specifying input units (e.g., {'u':'km/h', 'a':'ft/s²'})
+    Solves kinematic equations with comprehensive error handling.
+    
+    Args:
+        u: Initial velocity (m/s)
+        v: Final velocity (m/s)
+        a: Acceleration (m/s²)
+        s: Displacement (m)
+        t: Time (s)
+        units: Dictionary specifying input units (e.g., {'u':'km/h', 'a':'ft/s²'})
+    
+    Returns:
+        Dictionary with solutions for all kinematic variables
+        
+    Raises:
+        KinematicsError: For invalid inputs or physics violations
     """
-    # Conversion factors to SI
+    # Conversion factors to SI units
     CONVERSIONS = {
         'm/s': 1.0,
         'km/h': 1/3.6,
@@ -17,102 +57,127 @@ def solve_kinematics(u=None, v=None, a=None, s=None, t=None):
         'h': 3600.0
     }
 
-    # Convert inputs to SI units first
-    if units:
-        for var in ['u', 'v', 'a', 's', 't']:
-            if locals()[var] is not None and units.get(var):
-                try:
-                    locals()[var] *= CONVERSIONS[units[var]]
-                except KeyError:
-                    pass
-    
-    """
-    Solves for ALL possible kinematic variables given any valid input combination.
-    Returns: Dict with keys 'u', 'v', 'a', 's', 't' (floats, lists for ± solutions, or None).
-    Guaranteed to find every possible solution.
-    """
-    # Initialize with input values (ignore None)
-    known = {k: v for k, v in locals().items() if v is not None and k != 'known'}
-    solutions = {'u': None, 'v': None, 'a': None, 's': None, 't': None}
+    def validate_input(var: str, value: float) -> None:
+        """Validate input values based on physics constraints"""
+        if math.isnan(value) or math.isinf(value):
+            raise KinematicsError(
+                KinematicsErrorType.INVALID_INPUT,
+                f"{var} cannot be NaN or infinite",
+                var
+            )
+        if var == 't' and value < 0:
+            raise KinematicsError(
+                KinematicsErrorType.NEGATIVE_VALUE,
+                f"Time cannot be negative (got {value})",
+                var
+            )
+        if var == 'a' and abs(value) > 1e6:  # 100,000g limit
+            raise KinematicsError(
+                KinematicsErrorType.INVALID_RANGE,
+                f"Unrealistic acceleration (>{1e6} m/s²)",
+                var
+            )
+        if var in ['u', 'v'] and abs(value) > 3e8:  # Speed of light
+            raise KinematicsError(
+                KinematicsErrorType.PHYSICS_IMPOSSIBLE,
+                "Velocity exceeds speed of light",
+                var
+            )
 
-    def try_update(var, value):
-        """Update known/solutions if new value is valid and not already known."""
+    # Initialize solutions
+    solutions = {'u': None, 'v': None, 'a': None, 's': None, 't': None}
+    input_values = {'u': u, 'v': v, 'a': a, 's': s, 't': t}
+
+    # Validate and convert inputs
+    for var, value in input_values.items():
+        if value is not None:
+            try:
+                float_value = float(value)
+                validate_input(var, float_value)
+                
+                # Convert units if specified
+                if units and var in units:
+                    if units[var] not in CONVERSIONS:
+                        raise KinematicsError(
+                            KinematicsErrorType.UNIT_CONVERSION,
+                            f"Unknown unit '{units[var]}'",
+                            var
+                        )
+                    float_value *= CONVERSIONS[units[var]]
+                
+                solutions[var] = float_value
+            except ValueError as e:
+                raise KinematicsError(
+                    KinematicsErrorType.INVALID_INPUT,
+                    f"Invalid value for {var}",
+                    var
+                ) from e
+
+    # Main solving logic
+    known = {k: v for k, v in solutions.items() if v is not None}
+    
+    def try_update(var: str, value: Union[float, Tuple[float, float]]) -> bool:
+        """Helper function to update solutions"""
         if var not in known and value is not None:
             if isinstance(value, (list, tuple)):
-                solutions[var] = value
+                solutions[var] = tuple(value)
             else:
                 known[var] = solutions[var] = value
             return True
         return False
 
-    # Loop until no more variables can be found
-    while True:
+    # Iterative solver
+    max_iterations = 20
+    for _ in range(max_iterations):
         progress = False
 
-        # --- Equation 1: v = u + a*t ---
+        # Equation 1: v = u + a*t
         if all(k in known for k in ['u', 'a', 't']):
             progress |= try_update('v', known['u'] + known['a'] * known['t'])
 
-        # --- Equation 2: u = v - a*t ---
-        if all(k in known for k in ['v', 'a', 't']):
-            progress |= try_update('u', known['v'] - known['a'] * known['t'])
-
-        # --- Equation 3: a = (v - u)/t ---
-        if all(k in known for k in ['v', 'u', 't']) and known['t'] != 0:
-            progress |= try_update('a', (known['v'] - known['u']) / known['t'])
-
-        # --- Equation 4: t = (v - u)/a ---
-        if all(k in known for k in ['v', 'u', 'a']) and known['a'] != 0:
-            progress |= try_update('t', (known['v'] - known['u']) / known['a'])
-
-        # --- Equation 5: s = (u + v)/2 * t ---
-        if all(k in known for k in ['u', 'v', 't']):
-            progress |= try_update('s', 0.5 * (known['u'] + known['v']) * known['t'])
-
-        # --- Equation 6: s = u*t + 0.5*a*t² ---
+        # Equation 2: s = u*t + 0.5*a*t²
         if all(k in known for k in ['u', 'a', 't']):
             progress |= try_update('s', known['u'] * known['t'] + 0.5 * known['a'] * known['t']**2)
 
-        # --- Equation 7: v² = u² + 2*a*s (solve for v or u) ---
+        # Equation 3: v² = u² + 2*a*s
         if 'v' not in known and all(k in known for k in ['u', 'a', 's']):
             discriminant = known['u']**2 + 2 * known['a'] * known['s']
             if discriminant >= 0:
-                root = discriminant**0.5
-                progress |= try_update('v', [known['u'] + root, known['u'] - root] if known['a'] != 0 else known['u'])
+                root = math.sqrt(discriminant)
+                progress |= try_update('v', (known['u'] + root, known['u'] - root) if known['a'] != 0 else known['u'])
+            else:
+                raise KinematicsError(
+                    KinematicsErrorType.PHYSICS_IMPOSSIBLE,
+                    "No real solution exists for v² = u² + 2as"
+                )
 
-        if 'u' not in known and all(k in known for k in ['v', 'a', 's']):
-            discriminant = known['v']**2 - 2 * known['a'] * known['s']
-            if discriminant >= 0:
-                root = discriminant**0.5
-                progress |= try_update('u', [known['v'] - root, known['v'] + root] if known['a'] != 0 else known['v'])
+        # Equation 4: t = (v - u)/a
+        if 't' not in known and all(k in known for k in ['v', 'u', 'a']):
+            if known['a'] == 0:
+                raise KinematicsError(
+                    KinematicsErrorType.DIVISION_BY_ZERO,
+                    "Acceleration cannot be zero when calculating time"
+                )
+            progress |= try_update('t', (known['v'] - known['u']) / known['a'])
 
-        # --- Equation 8: a = (v² - u²)/(2*s) ---
-        if 'a' not in known and all(k in known for k in ['v', 'u', 's']) and known['s'] != 0:
-            progress |= try_update('a', (known['v']**2 - known['u']**2) / (2 * known['s']))
+        # Equation 5: s = (u + v)/2 * t
+        if 's' not in known and all(k in known for k in ['u', 'v', 't']):
+            progress |= try_update('s', 0.5 * (known['u'] + known['v']) * known['t'])
 
-        # --- Equation 9: Quadratic solution for t (s = u*t + 0.5*a*t²) ---
-        if 't' not in known and all(k in known for k in ['u', 'a', 's']):
-            a, u, s = known['a'], known['u'], known['s']
-            if a != 0:
-                discriminant = u**2 + 2 * a * s
-                if discriminant >= 0:
-                    t1 = (-u + discriminant**0.5) / a
-                    t2 = (-u - discriminant**0.5) / a
-                    valid_times = [t for t in [t1, t2] if t >= 0]
-                    if valid_times:
-                        progress |= try_update('t', valid_times[0] if len(valid_times) == 1 else valid_times)
-            else:  # a=0 (constant velocity)
-                if u != 0:
-                    progress |= try_update('t', s / u)
-
-        # --- Equation 10: t = 2*s / (u + v) ---
-        if 't' not in known and all(k in known for k in ['u', 'v', 's']):
-            denominator = known['u'] + known['v']
-            if denominator != 0:
-                progress |= try_update('t', (2 * known['s']) / denominator)
-
-        # --- Early exit if no progress ---
         if not progress:
             break
+    else:
+        raise KinematicsError(
+            KinematicsErrorType.PHYSICS_IMPOSSIBLE,
+            "Maximum iterations reached without convergence"
+        )
+
+    # Verify minimum required variables
+    if len(known) < 3:
+        missing = [k for k in ['u', 'v', 'a', 's', 't'] if k not in known]
+        raise KinematicsError(
+            KinematicsErrorType.MISSING_REQUIRED,
+            f"Need at least 3 known variables (missing: {', '.join(missing)})"
+        )
 
     return solutions
