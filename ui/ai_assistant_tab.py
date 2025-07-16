@@ -3,7 +3,7 @@ import math
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTextEdit, QPushButton, QLabel, QMessageBox
 )
-from PyQt6.QtCore import QThread, QTimer, Qt, QSize, QPoint
+from PyQt6.QtCore import QThread, QTimer, Qt, QSize, QPoint, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen, QBrush
 from core.physics_ai.hf_mistral import PhysicsMistral
 
@@ -74,8 +74,8 @@ class ParticleBackground(QWidget):
 
 
 class AIWorker(QThread):
-    finished = QThread.finished
-    error = QThread.finished
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
 
     def __init__(self, mistral, question):
         super().__init__()
@@ -231,6 +231,7 @@ class AIAssistantTab(QWidget):
         validated = self.validate_ai_response(response)
         self.response_display.setPlainText(validated)
         self.worker = None
+
 
     def handle_error(self, error_msg):
         self.response_display.setPlainText(f"Error: {error_msg}")
