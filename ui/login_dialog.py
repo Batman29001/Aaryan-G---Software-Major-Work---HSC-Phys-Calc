@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
-
+from PyQt6.QtWidgets import QInputDialog
 from ui.main_window import ParticleBackground
 from ui.signup_dialog import SignupDialog
 
@@ -120,8 +120,18 @@ class LoginDialog(QDialog):
 
         user = self.auth_manager.login(email, password)
         if user:
-            self.user_id, self.username = user
-            self.accept()
+            # 2FA verification step
+            code, ok = QInputDialog.getText(self, "Two-Factor Authentication", "Enter 2FA code from Authenticator app:")
+            if ok:
+                import pyotp
+                totp = pyotp.TOTP(user["totp_secret"])
+                if totp.verify(code.strip()):
+                    self.user_id, self.username = user["id"], user["username"]
+                    self.accept()
+                else:
+                    self.error_label.setText("Invalid 2FA code.")
+            else:
+                self.error_label.setText("2FA code required.")
         else:
             self.error_label.setText("Invalid email or password.")
 

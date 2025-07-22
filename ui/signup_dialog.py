@@ -104,17 +104,49 @@ class SignupDialog(QDialog):
         if not all([username, email, password]):
             self.error_label.setText("All fields are required.")
             return
-        if len(username) < 3:
-            self.error_label.setText("Username must be at least 3 characters.")
-            return
-        if not re.match(r"[^@]+@[^@]+\\.[^@]+", email):
-            self.error_label.setText("Invalid email format.")
-            return
-        if len(password) < 6:
-            self.error_label.setText("Password must be at least 6 characters.")
+
+        if len(username) < 3 or not re.match(r'^[a-zA-Z0-9_.]+$', username):
+            self.error_label.setText("Username must be 3+ chars (letters, numbers, _, . only).")
             return
 
-        if self.auth_manager.signup(username, email, password):
+        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
+            self.error_label.setText("Invalid email format.")
+            return
+
+        if len(password) < 8 or not (
+            any(c.islower() for c in password) and
+            any(c.isupper() for c in password) and
+            any(c.isdigit() for c in password) and
+            any(c in "!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?`~" for c in password)
+        ):
+            self.error_label.setText("Password must be 8+ chars, upper, lower, digit & symbol.")
+            return
+
+        # 2FA: Sign up and get TOTP secret
+        secret = self.auth_manager.signup(username, email, password)
+        if secret:
+            self.display_2fa_qr(secret)
             self.accept()
         else:
             self.error_label.setText("Email or username already exists.")
+
+    def display_2fa_qr(self, secret):
+        import pyotp, qrcode
+        from io import BytesIO
+        from PyQt6.QtGui import QPixmap
+
+        totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+            name=self.email_input.text(),
+            issuer_name="Phys Calc"
+        )
+        qr = qrcode.make(totp_uri)
+        buf = BytesIO()
+        qr.save(buf, format='PNG')
+        pixmap = QPixmap()
+        pixmap.loadFromData(buf.getvalue())
+
+        qr_label = QLabel()
+        qr_label.setPixmap(pixmap)
+        qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout().addWidget(qr_label)
+

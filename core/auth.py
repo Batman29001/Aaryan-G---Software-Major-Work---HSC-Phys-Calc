@@ -1,12 +1,15 @@
+import pyotp
+import bcrypt
 from core.database import init_db
 from mysql.connector import Error
 from hashlib import sha256
-from mysql.connector import IntegrityError  # Add this import
+from mysql.connector import IntegrityError 
 
 class AuthManager:
     def __init__(self):
             print("Attempting database connection...")
             self.conn = init_db()
+            print("Connected?", self.conn.is_connected() if self.conn else "Failed")
             self.current_user = None
             print(f"Connection result: {self.conn}")  
             if not self.conn:
@@ -15,30 +18,32 @@ class AuthManager:
     
     def signup(self, username, email, password):
         cursor = self.conn.cursor()
-        password_hash = sha256(password.encode()).hexdigest()
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        totp_secret = pyotp.random_base32()
+
         try:
             cursor.execute("""
-                INSERT INTO users (username, email, password_hash)
-                VALUES (%s, %s, %s)
-            """, (username, email, password_hash))
+                INSERT INTO users (username, email, password_hash, totp_secret)
+                VALUES (%s, %s, %s, %s)
+            """, (username, email, password_hash, totp_secret))
             self.conn.commit()
-            return True
+            return totp_secret
         except Error as e:
             print(f"🚨 Signup Error: {e}")
             return False
+
     
     def login(self, email, password):
-        cursor = self.conn.cursor()
-        password_hash = sha256(password.encode()).hexdigest()
+        cursor = self.conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, username FROM users 
-            WHERE email = %s AND password_hash = %s
-        """, (email, password_hash))
-        
+            SELECT id, username, password_hash, totp_secret FROM users
+            WHERE email = %s
+        """, (email,))
         user = cursor.fetchone()
-        if user:
-            self.current_user = user  # Store as (id, username)
-        return user
+        if user and bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
+            self.current_user = (user["id"], user["username"])
+            return user  # send back secret too
+        return None
     
     def save_global_message(self, user_id, username, message):
         if not message.strip():

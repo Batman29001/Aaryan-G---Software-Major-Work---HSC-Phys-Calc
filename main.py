@@ -6,7 +6,10 @@ from ui.main_window import PhysicsCalculator
 from core.auth import AuthManager
 from ui.login_dialog import LoginDialog
 from PyQt6.QtWidgets import QDialog
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.DEBUG,

@@ -3,6 +3,7 @@ Directory structure:
      ├── advanced_mechanics.py
      ├── auth.py
      ├── database.py
+     ├── db_setup.py
      ├── dynamics.py
      ├── electricity_magnetism.py
      ├── electromagnetism.py
