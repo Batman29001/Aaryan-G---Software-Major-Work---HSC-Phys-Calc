@@ -103,7 +103,7 @@ class MainMenu(QWidget):
             "Kinematics Calculator",
             "Dynamics Calculator",
             "Waves Calculator",
-            "Electricity & Magnetism",
+            "Electricity and Magnetism",
             "Advanced Mechanics",
             "Electromagnetism",
             "AI Physics Solver",

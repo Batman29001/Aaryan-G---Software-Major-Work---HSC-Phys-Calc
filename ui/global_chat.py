@@ -92,7 +92,7 @@ class GlobalChatTab(QWidget):
         layout.setContentsMargins(40, 30, 40, 20)
         layout.setSpacing(15)
 
-        title = QLabel("Global Physics Chat")
+        title = QLabel("Welcome to the Global Chat Server!")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("""
             QLabel {

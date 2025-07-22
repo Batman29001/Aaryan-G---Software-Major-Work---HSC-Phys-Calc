@@ -111,7 +111,7 @@ class AIAssistantTab(QWidget):
         layout.setSpacing(15)
 
         # Title
-        title = QLabel("Physics Question Solver")
+        title = QLabel("Welcome to your personal Physics AI assistant!")
         title.setStyleSheet("""
             QLabel {
                 color: #4FC3F7;

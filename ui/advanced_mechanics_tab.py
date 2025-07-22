@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
 from core.advanced_mechanics import (solve_projectile_motion, solve_circular_motion,
-                                    solve_banked_tracks, solve_gravitation)
+                                    solve_banked_tracks, solve_gravitation,
+                                    InputValidationError, InsufficientDataError)
 from PyQt6.QtGui import QFont, QColor
 from matplotlib.patches import Circle, Arrow, FancyArrowPatch
 import math
@@ -171,6 +172,21 @@ class BaseAdvancedMechanicsTab(QWidget):
         """To be implemented by subclasses"""
         pass
 
+    def handle_calculation_error(self, e: Exception) -> str:
+        """Convert core physics exceptions to user-friendly messages"""
+        if isinstance(e, InputValidationError):
+            return f"Invalid input: {str(e)}"
+        elif isinstance(e, InsufficientDataError):
+            return f"Missing required data: {str(e)}"
+        elif "Division by zero" in str(e):
+            return "Calculation error: Division by zero occurred (check your inputs)"
+        elif "Maximum iterations reached" in str(e):
+            return "Calculation didn't converge - check if inputs are physically possible"
+        elif "invalid value" in str(e).lower():
+            return "Invalid value encountered in calculations"
+        else:
+            return f"Calculation error: {str(e)}"
+
 class ProjectileMotionTab(BaseAdvancedMechanicsTab):
     def __init__(self, parent=None):
         super().__init__("Projectile Motion Calculator", parent)
@@ -229,7 +245,8 @@ class ProjectileMotionTab(BaseAdvancedMechanicsTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -342,7 +359,8 @@ class CircularMotionTab(BaseAdvancedMechanicsTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -443,7 +461,9 @@ class BankedTracksTab(BaseAdvancedMechanicsTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
+
     
     def plot(self):
         if not self.last_result:
@@ -561,12 +581,17 @@ class GravitationTab(BaseAdvancedMechanicsTab):
             result_text = "📊 Results:\n"
             for var, val in result.items():
                 if val is not None:
-                    result_text += f"• {var}: {val:.3e} {self.unit_combos[var].currentText()}\n"
+                    # Use scientific notation for very large/small numbers in gravitation
+                    if abs(val) > 1e4 or abs(val) < 1e-4:
+                        result_text += f"• {var}: {val:.3e} {self.unit_combos[var].currentText()}\n"
+                    else:
+                        result_text += f"• {var}: {val:.3f} {self.unit_combos[var].currentText()}\n"
             
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:

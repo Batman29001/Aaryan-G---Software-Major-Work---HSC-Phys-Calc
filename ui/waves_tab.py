@@ -5,7 +5,8 @@ from PyQt6.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
-from core.waves import solve_wave_properties, solve_sound_waves, solve_light_properties
+from core.waves import (solve_wave_properties, solve_sound_waves, solve_light_properties,
+                       InputValidationError, InsufficientDataError, PhysicsConfigurationError)
 from PyQt6.QtGui import QFont, QColor
 from matplotlib.patches import ArrowStyle
 import math
@@ -169,6 +170,24 @@ class BaseWaveTab(QWidget):
         """To be implemented by subclasses"""
         pass
 
+    def handle_calculation_error(self, e: Exception) -> str:
+        """Convert core physics exceptions to user-friendly messages"""
+        if isinstance(e, InputValidationError):
+            return f"Invalid input: {str(e)}"
+        elif isinstance(e, InsufficientDataError):
+            return f"Missing required data: {str(e)}"
+        elif isinstance(e, PhysicsConfigurationError):
+            return f"Physical impossibility: {str(e)}"
+        elif "Division by zero" in str(e):
+            return "Calculation error: Division by zero occurred (check your inputs)"
+        elif "Maximum iterations reached" in str(e):
+            return "Calculation didn't converge - check if inputs are physically possible"
+        elif "invalid value" in str(e).lower():
+            return "Invalid value encountered in calculations"
+        else:
+            return f"Calculation error: {str(e)}"
+
+
 class WavePropertiesTab(BaseWaveTab):
     def __init__(self, parent=None):
         super().__init__("Wave Properties Calculator", parent)
@@ -219,7 +238,8 @@ class WavePropertiesTab(BaseWaveTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -313,7 +333,8 @@ class SoundWavesTab(BaseWaveTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -422,7 +443,8 @@ class LightPropertiesTab(BaseWaveTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:

@@ -7,7 +7,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
 from core.electromagnetism import (solve_lorentz_force, solve_force_on_wire,
                                   solve_parallel_wires, solve_emf_induction,
-                                  solve_transformer, solve_motor_torque)
+                                  solve_transformer, solve_motor_torque,
+                                  PhysicsError, InputValidationError, InsufficientDataError)
 from PyQt6.QtGui import QFont
 from matplotlib.patches import Circle, Arrow, FancyArrowPatch
 import math
@@ -166,6 +167,25 @@ class BaseElectromagnetismTab(QWidget):
         self.ax.clear()
         self.update_plot_theme()
         self.canvas.draw()
+
+    def handle_calculation_error(self, e: Exception) -> str:
+        """Convert core physics exceptions to user-friendly messages"""
+        if isinstance(e, InputValidationError):
+            return f"Invalid input: {str(e)}"
+        elif isinstance(e, InsufficientDataError):
+            return f"Missing required data: {str(e)}"
+        elif "Division by zero" in str(e):
+            return "Calculation error: Division by zero occurred (check your inputs)"
+        elif "Maximum iterations reached" in str(e):
+            return "Calculation didn't converge - check if inputs are physically possible"
+        elif "invalid value" in str(e).lower():
+            return "Invalid value encountered in calculations"
+        elif "cannot be negative" in str(e).lower():
+            return "Negative value provided where not allowed"
+        elif "cannot be zero" in str(e).lower():
+            return "Zero value provided where not allowed"
+        else:
+            return f"Calculation error: {str(e)}"
     
     def plot(self):
         """To be implemented by subclasses"""
@@ -227,7 +247,8 @@ class LorentzForceTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -325,7 +346,8 @@ class ForceOnWireTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -410,7 +432,8 @@ class ParallelWiresTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -507,7 +530,8 @@ class EMFInductionTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -598,7 +622,8 @@ class TransformerTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:
@@ -694,7 +719,8 @@ class MotorTorqueTab(BaseElectromagnetismTab):
             self.result_display.setText(result_text)
             
         except Exception as e:
-            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            error_msg = self.handle_calculation_error(e)
+            QMessageBox.critical(self, "Calculation Error", error_msg)
     
     def plot(self):
         if not self.last_result:

@@ -81,15 +81,8 @@ class EMSolver:
     def _check_sufficient_data(self, category: str) -> None:
         """Check if enough data is provided to solve the problem"""
         if category == 'electrostatics':
-            required_pairs = [
-                (['F', 'q'], ['F', 'E'], ['q', 'E']),
-                (['V', 'd']),
-                (['E', 'd'])
-            ]
-            if not any(all(k in self.solutions and self.solutions[k] is not None for k in pair) 
-                      for pair in required_pairs):
-                raise InsufficientDataError("Need at least two of: F/q/E or V/d or E/d")
-                
+            return  # Skip strict checks — allow solving from any inputs
+                    
         elif category == 'circuits':
             if not any(k in self.solutions and self.solutions[k] is not None 
                       for k in ['V_circuit', 'I', 'R']):
