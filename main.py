@@ -54,7 +54,7 @@ def main():
             user = auth.login(email, password)  # This sets auth.current_user
             
             if user:  # Only proceed if login succeeded
-                logging.info(f"User {user[1]} logged in (ID: {user[0]})")
+                logging.info(f"User {user['username']} logged in (ID: {user['id']})")
                 calculator = PhysicsCalculator(auth)
                 calculator.show()
                 sys.exit(app.exec())
