@@ -15,10 +15,10 @@ class ParticleBackground(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.particles = []
-        self.initParticles(20)  # Reduced from 35 to 20 particles
+        self.initParticles(35)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.updateParticles)
-        self.timer.start(60)  # Increased from 40ms to 60ms (less frequent updates)
+        self.timer.start(40)
 
     def initParticles(self, count):
         for _ in range(count):
@@ -54,11 +54,39 @@ class ParticleBackground(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+        dirty_rect = event.rect()
+        painter.setClipRect(dirty_rect)
+
         for p in self.particles:
-            painter.setPen(QPen(p['color'], p['size']))
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(p['color']))
             painter.drawEllipse(QPoint(int(p['x']), int(p['y'])), int(p['size']), int(p['size']))
+
+        pen = QPen(QColor(200, 200, 200, 15))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        grid_size = 50
+        for x in range(0, self.width(), grid_size):
+            painter.drawLine(x, 0, x, self.height())
+        for y in range(0, self.height(), grid_size):
+            painter.drawLine(0, y, self.width(), y)
+        painter.end()
+
+
+class ModelLoaderWorker(QThread):
+    finished = pyqtSignal(object)  # Emits the loaded model
+    error = pyqtSignal(str)  # Emits error message
+
+    def __init__(self):
+        super().__init__()
+        self.model = None
+
+    def run(self):
+        try:
+            self.model = PhysicsMistral()
+            self.finished.emit(self.model)
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 class AIWorker(QThread):
@@ -83,6 +111,7 @@ class AIAssistantTab(QWidget):
         super().__init__()
         self.mistral = None  # Don't load model immediately
         self.worker = None
+        self.model_loader = None
 
         self.background = ParticleBackground(self)
         self.background.lower()
@@ -197,23 +226,49 @@ class AIAssistantTab(QWidget):
             self.response_display.setPlainText("AI feature is disabled")
             return
 
-        # Lazy load the model only when needed
-        if self.mistral is None:
-            self.response_display.setPlainText("Loading AI model... This may take a moment on first use.")
-            try:
-                self.mistral = PhysicsMistral()
-            except Exception as e:
-                self.response_display.setPlainText(f"Error loading AI model: {str(e)}")
-                return
-
-        if self.worker and self.worker.isRunning():
-            self.worker.quit()
-            self.worker.wait()
-
         question = self.question_input.toPlainText()
         if not question.strip():
             self.response_display.setPlainText("Please enter a question")
             return
+
+        # If model is not loaded, load it in background thread
+        if self.mistral is None:
+            self.response_display.setPlainText("Loading AI model... This may take a moment on first use.")
+            
+            # Stop any existing model loader
+            if self.model_loader and self.model_loader.isRunning():
+                self.model_loader.quit()
+                self.model_loader.wait()
+            
+            # Start model loading in background
+            self.model_loader = ModelLoaderWorker()
+            self.model_loader.finished.connect(self.on_model_loaded)
+            self.model_loader.error.connect(self.on_model_error)
+            self.model_loader.start()
+            return
+
+        # Model is loaded, proceed with question
+        self.process_question(question)
+
+    def on_model_loaded(self, model):
+        """Called when AI model finishes loading"""
+        self.mistral = model
+        self.response_display.setPlainText("AI model loaded! Processing your question...")
+        
+        # Now process the question that was waiting
+        question = self.question_input.toPlainText()
+        if question.strip():
+            self.process_question(question)
+
+    def on_model_error(self, error_msg):
+        """Called when AI model loading fails"""
+        self.response_display.setPlainText(f"Error loading AI model: {error_msg}")
+
+    def process_question(self, question):
+        """Process the question with the loaded model"""
+        if self.worker and self.worker.isRunning():
+            self.worker.quit()
+            self.worker.wait()
 
         try:
             self.response_display.setPlainText("Processing...")
@@ -237,4 +292,7 @@ class AIAssistantTab(QWidget):
         if self.worker and self.worker.isRunning():
             self.worker.quit()
             self.worker.wait()
+        if self.model_loader and self.model_loader.isRunning():
+            self.model_loader.quit()
+            self.model_loader.wait()
         event.accept()

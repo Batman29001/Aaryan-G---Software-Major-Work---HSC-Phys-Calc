@@ -79,13 +79,28 @@ class GlobalChatTab(QWidget):
         self.setup_ui()
         self.load_messages()
 
+        # Don't start timer immediately - only when tab is visible
         self.timer = QTimer()
         self.timer.timeout.connect(self.load_messages)
-        self.timer.start(2000)
+        self.timer_running = False
 
     def resizeEvent(self, event):
         self.background.resize(self.size())
         super().resizeEvent(event)
+
+    def showEvent(self, event):
+        """Start timer when tab becomes visible"""
+        super().showEvent(event)
+        if not self.timer_running:
+            self.timer.start(2000)
+            self.timer_running = True
+
+    def hideEvent(self, event):
+        """Stop timer when tab is hidden"""
+        super().hideEvent(event)
+        if self.timer_running:
+            self.timer.stop()
+            self.timer_running = False
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
