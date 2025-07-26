@@ -1,18 +1,20 @@
+import re
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QWidget, QGraphicsDropShadowEffect
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
-import re
-
 from ui.main_window import ParticleBackground
+from ui.qr_code_dialog import QRCodeDialog
+
 
 class SignupDialog(QDialog):
     def __init__(self, auth_manager):
         super().__init__()
         self.auth_manager = auth_manager
         self.setWindowTitle("Create Account")
-        self.setFixedSize(400, 420)
+        self.setMinimumSize(400, 420)
+        self.setMaximumWidth(400)
         self.setStyleSheet("background: transparent;")
         self.setup_ui()
 
@@ -22,24 +24,8 @@ class SignupDialog(QDialog):
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        container = QWidget()
-        container.setStyleSheet("""
-            QWidget {
-                background-color: rgba(30, 40, 50, 0.92);
-                border-radius: 12px;
-            }
-        """)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setXOffset(0)
-        shadow.setYOffset(4)
-        shadow.setColor(QColor(0, 0, 0, 150))
-        container.setGraphicsEffect(shadow)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(16)
+        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setSpacing(16)
 
         title = QLabel("Create Your Phys Calc Account")
         title.setFont(QFont("Segoe UI", 14))
@@ -87,14 +73,12 @@ class SignupDialog(QDialog):
         self.error_label.setStyleSheet("color: #EF9A9A; font-size: 12px;")
         self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(title)
-        layout.addWidget(self.username_input)
-        layout.addWidget(self.email_input)
-        layout.addWidget(self.password_input)
-        layout.addWidget(self.signup_btn)
-        layout.addWidget(self.error_label)
-
-        main_layout.addWidget(container)
+        main_layout.addWidget(title)
+        main_layout.addWidget(self.username_input)
+        main_layout.addWidget(self.email_input)
+        main_layout.addWidget(self.password_input)
+        main_layout.addWidget(self.signup_btn)
+        main_layout.addWidget(self.error_label)
 
     def handle_signup(self):
         username = self.username_input.text().strip()
@@ -122,31 +106,17 @@ class SignupDialog(QDialog):
             self.error_label.setText("Password must be 8+ chars, upper, lower, digit & symbol.")
             return
 
-        # 2FA: Sign up and get TOTP secret
-        secret = self.auth_manager.signup(username, email, password)
-        if secret:
-            self.display_2fa_qr(secret)
-            self.accept()
-        else:
-            self.error_label.setText("Email or username already exists.")
+        # SIGNUP + GET 2FA SECRET + URI
+        result = self.auth_manager.signup(username, email, password)
 
-    def display_2fa_qr(self, secret):
-        import pyotp, qrcode
-        from io import BytesIO
-        from PyQt6.QtGui import QPixmap
+        if result:
+            secret = result["secret"]
+            uri = result["uri"]
 
-        totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-            name=self.email_input.text(),
-            issuer_name="Phys Calc"
-        )
-        qr = qrcode.make(totp_uri)
-        buf = BytesIO()
-        qr.save(buf, format='PNG')
-        pixmap = QPixmap()
-        pixmap.loadFromData(buf.getvalue())
+            qr_dialog = QRCodeDialog(uri)
+            qr_dialog.exec()
 
-        qr_label = QLabel()
-        qr_label.setPixmap(pixmap)
-        qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout().addWidget(qr_label)
+            self.signup_btn.setDisabled(True)
+            self.signup_btn.setText("Account created! Check your Email to verify your account ✅")
+
 

@@ -18,10 +18,10 @@ class ParticleBackground(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.particles = []
-        self.initParticles(35)
+        self.initParticles(20)  # Reduced from 35 to 20 particles
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.updateParticles)
-        self.timer.start(40)
+        self.timer.start(60)  # Increased from 40ms to 60ms (less frequent updates)
 
     def initParticles(self, count):
         for _ in range(count):
@@ -57,11 +57,9 @@ class ParticleBackground(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        dirty_rect = event.rect()
-        painter.setClipRect(dirty_rect)
-
+        
         for p in self.particles:
-            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setPen(QPen(p['color'], p['size']))
             painter.setBrush(QBrush(p['color']))
             painter.drawEllipse(QPoint(int(p['x']), int(p['y'])), int(p['size']), int(p['size']))
 

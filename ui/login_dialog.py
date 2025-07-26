@@ -22,26 +22,10 @@ class LoginDialog(QDialog):
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setSpacing(16)
 
-        container = QWidget()
-        container.setStyleSheet("""
-            QWidget {
-                background-color: rgba(30, 40, 50, 0.92);
-                border-radius: 12px;
-            }
-        """)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setXOffset(0)
-        shadow.setYOffset(4)
-        shadow.setColor(QColor(0, 0, 0, 150))
-        container.setGraphicsEffect(shadow)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(16)
-
-        title = QLabel("Welcome to Phys Calc")
+        title = QLabel("Welcome Back to Phys Calc!")
         title.setFont(QFont("Segoe UI", 14))
         title.setStyleSheet("color: #4FC3F7;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -102,38 +86,40 @@ class LoginDialog(QDialog):
         self.error_label.setStyleSheet("color: #EF9A9A; font-size: 12px;")
         self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(title)
-        layout.addWidget(self.email_input)
-        layout.addWidget(self.password_input)
-        layout.addWidget(self.login_btn)
-        layout.addWidget(self.signup_btn)
-        layout.addWidget(self.error_label)
-
-        main_layout.addWidget(container)
+        main_layout.addWidget(title)
+        main_layout.addWidget(self.email_input)
+        main_layout.addWidget(self.password_input)
+        main_layout.addWidget(self.login_btn)
+        main_layout.addWidget(self.signup_btn)
+        main_layout.addWidget(self.error_label)
 
     def handle_login(self):
         email = self.email_input.text().strip()
         password = self.password_input.text()
+
         if not email or not password:
             self.error_label.setText("Enter both email and password.")
             return
 
-        user = self.auth_manager.login(email, password)
+        # Ask for 2FA code (always, for simplicity — or you could only ask after password passes)
+        totp_code, ok = QInputDialog.getText(
+            self,
+            "Two-Factor Authentication",
+            "Enter your 2FA code from Authenticator app:"
+        )
+
+        if not ok or not totp_code.strip():
+            self.error_label.setText("2FA code required.")
+            return
+
+        # Call login with 2FA code
+        user = self.auth_manager.login(email, password, totp_code.strip())
+
         if user:
-            # 2FA verification step
-            code, ok = QInputDialog.getText(self, "Two-Factor Authentication", "Enter 2FA code from Authenticator app:")
-            if ok:
-                import pyotp
-                totp = pyotp.TOTP(user["totp_secret"])
-                if totp.verify(code.strip()):
-                    self.user_id, self.username = user["id"], user["username"]
-                    self.accept()
-                else:
-                    self.error_label.setText("Invalid 2FA code.")
-            else:
-                self.error_label.setText("2FA code required.")
+            self.user_id, self.username = user["id"], user["username"]
+            self.accept()
         else:
-            self.error_label.setText("Invalid email or password.")
+            self.error_label.setText("Invalid credentials or 2FA code.")
 
     def handle_signup(self):
         signup_dialog = SignupDialog(self.auth_manager)

@@ -22,6 +22,16 @@ def create_schema_if_missing(conn):
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS email_verifications (
+        user_id INT PRIMARY KEY,
+        token VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    """)
     
     conn.commit()
     print("✅ Tables created or already exist.")

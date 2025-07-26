@@ -32,6 +32,7 @@ Directory structure:
      ├── dynamics_tab.py
      ├── electricity_magnetism_tab.py
      ├── electromagnetism_tab.py
+     ├── qr_code_dialog.py
      ├── kinematics_tab.py
      ├── login_dialog.py
      ├── main_window.py
@@ -47,4 +48,7 @@ Directory structure:
           ├── main_window.cpython-312.pyc
           └── waves_tab.cpython-312.pyc
 └── main.py 
-└── hftest.py      
+└── verify_email.py  
+└── verify_install.py
+└── verify_server.py
+ 

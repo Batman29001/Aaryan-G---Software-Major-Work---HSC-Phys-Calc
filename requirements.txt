@@ -8,6 +8,9 @@ ctransformers>=0.2.24
 huggingface-hub>=0.16.0
 torch>=2.0.0  # For model loading support
 
+# Web server for email verification
+Flask>=2.0.0
+
 # Optional GPU acceleration (uncomment if you have CUDA)
 # torch-audio>=2.0.0
 # torch-vision>=0.15.0

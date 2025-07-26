@@ -7,9 +7,13 @@ from core.auth import AuthManager
 from ui.login_dialog import LoginDialog
 from PyQt6.QtWidgets import QDialog
 from dotenv import load_dotenv
+import subprocess
 
 
 load_dotenv()
+
+subprocess.Popen([sys.executable, "verify_server.py"])
+
 
 logging.basicConfig(
     level=logging.DEBUG,

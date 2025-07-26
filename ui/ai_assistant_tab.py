@@ -15,10 +15,10 @@ class ParticleBackground(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.particles = []
-        self.initParticles(35)
+        self.initParticles(20)  # Reduced from 35 to 20 particles
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.updateParticles)
-        self.timer.start(40)
+        self.timer.start(60)  # Increased from 40ms to 60ms (less frequent updates)
 
     def initParticles(self, count):
         for _ in range(count):
@@ -54,23 +54,11 @@ class ParticleBackground(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        dirty_rect = event.rect()
-        painter.setClipRect(dirty_rect)
-
+        
         for p in self.particles:
-            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setPen(QPen(p['color'], p['size']))
             painter.setBrush(QBrush(p['color']))
             painter.drawEllipse(QPoint(int(p['x']), int(p['y'])), int(p['size']), int(p['size']))
-
-        pen = QPen(QColor(200, 200, 200, 15))
-        pen.setWidth(1)
-        painter.setPen(pen)
-        grid_size = 50
-        for x in range(0, self.width(), grid_size):
-            painter.drawLine(x, 0, x, self.height())
-        for y in range(0, self.height(), grid_size):
-            painter.drawLine(0, y, self.width(), y)
-        painter.end()
 
 
 class AIWorker(QThread):
@@ -93,7 +81,7 @@ class AIWorker(QThread):
 class AIAssistantTab(QWidget):
     def __init__(self):
         super().__init__()
-        self.mistral = PhysicsMistral() if ENABLE_AI else None
+        self.mistral = None  # Don't load model immediately
         self.worker = None
 
         self.background = ParticleBackground(self)
@@ -192,12 +180,12 @@ class AIAssistantTab(QWidget):
             }
         """)
         back_btn.clicked.connect(self.return_to_menu)
-        layout.addWidget(back_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
-        self.setLayout(layout)
+        layout.addWidget(back_btn)
 
     def return_to_menu(self):
-        self.parent().parent().return_to_menu()
+        from ui.main_window import PhysicsCalculator
+        if hasattr(self.parent(), 'parent') and hasattr(self.parent().parent(), 'return_to_menu'):
+            self.parent().parent().return_to_menu()
 
     def validate_ai_response(self, response: str) -> str:
         if "**Final Answer:**" not in response:
@@ -208,6 +196,15 @@ class AIAssistantTab(QWidget):
         if not ENABLE_AI:
             self.response_display.setPlainText("AI feature is disabled")
             return
+
+        # Lazy load the model only when needed
+        if self.mistral is None:
+            self.response_display.setPlainText("Loading AI model... This may take a moment on first use.")
+            try:
+                self.mistral = PhysicsMistral()
+            except Exception as e:
+                self.response_display.setPlainText(f"Error loading AI model: {str(e)}")
+                return
 
         if self.worker and self.worker.isRunning():
             self.worker.quit()
@@ -231,7 +228,6 @@ class AIAssistantTab(QWidget):
         validated = self.validate_ai_response(response)
         self.response_display.setPlainText(validated)
         self.worker = None
-
 
     def handle_error(self, error_msg):
         self.response_display.setPlainText(f"Error: {error_msg}")
