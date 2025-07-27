@@ -51,4 +51,5 @@ Directory structure:
 └── verify_email.py  
 └── verify_install.py
 └── verify_server.py
+└── .env
  

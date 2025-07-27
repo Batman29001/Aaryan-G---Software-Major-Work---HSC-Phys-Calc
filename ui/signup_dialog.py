@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
-from ui.main_window import ParticleBackground
+from ui.particle_background import ParticleBackground
 from ui.qr_code_dialog import QRCodeDialog
 
 

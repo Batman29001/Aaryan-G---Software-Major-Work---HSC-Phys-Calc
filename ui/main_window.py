@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QMainWindow, QStackedWidget, QWidget, QVBoxLayout, QPushButton, QLabel, QFrame)
-from PyQt6.QtCore import Qt, QTimer, QSize, QPoint
-from PyQt6.QtGui import QColor, QPainter, QPen, QBrush, QFont
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
 
 from ui.kinematics_tab import KinematicsTab
 from ui.dynamics_tab import DynamicsTab
@@ -10,91 +10,49 @@ from ui.advanced_mechanics_tab import AdvancedMechanicsTab
 from ui.electromagnetism_tab import ElectromagnetismTab
 from ui.ai_assistant_tab import AIAssistantTab
 from ui.global_chat import GlobalChatTab
-
+from ui.user_settings_tab import UserSettingsTab
+from ui.particle_background import ParticleBackground
 import random
-import math
-
-class ParticleBackground(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.particles = []
-        self.initParticles(20)  # Reduced from 35 to 20 particles
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.updateParticles)
-        self.timer.start(60)  # Increased from 40ms to 60ms (less frequent updates)
-
-    def initParticles(self, count):
-        for _ in range(count):
-            size = random.uniform(1, 2.5)
-            speed = random.uniform(0.3, 1.2)
-            self.particles.append({
-                'x': random.uniform(0, self.width()),
-                'y': random.uniform(0, self.height()),
-                'size': size,
-                'speed': speed,
-                'direction': random.uniform(0, 2 * math.pi),
-                'color': QColor(79, 195, 247, random.randint(40, 100))
-            })
-
-    def resizeEvent(self, event):
-        for p in self.particles:
-            p['x'] = random.uniform(0, self.width())
-            p['y'] = random.uniform(0, self.height())
-        super().resizeEvent(event)
-
-    def updateParticles(self):
-        for p in self.particles:
-            p['x'] += math.cos(p['direction']) * p['speed']
-            p['y'] += math.sin(p['direction']) * p['speed']
-            if p['x'] < 0: p['x'] = self.width()
-            if p['x'] > self.width(): p['x'] = 0
-            if p['y'] < 0: p['y'] = self.height()
-            if p['y'] > self.height(): p['y'] = 0
-            if random.random() < 0.015:
-                p['direction'] += random.uniform(-0.3, 0.3)
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        for p in self.particles:
-            painter.setPen(QPen(p['color'], p['size']))
-            painter.setBrush(QBrush(p['color']))
-            painter.drawEllipse(QPoint(int(p['x']), int(p['y'])), int(p['size']), int(p['size']))
-
-        pen = QPen(QColor(200, 200, 200, 15))
-        pen.setWidth(1)
-        painter.setPen(pen)
-        grid_size = 50
-        for x in range(0, self.width(), grid_size):
-            painter.drawLine(x, 0, x, self.height())
-        for y in range(0, self.height(), grid_size):
-            painter.drawLine(0, y, self.width(), y)
-        painter.end()
 
 class MainMenu(QWidget):
     def __init__(self, username, parent=None):
         super().__init__(parent)
         self.username = username
+
+        # Create a background and overlay layout
         self.background = ParticleBackground(self)
+
+        self.content = QWidget(self)
+        self.layout = QVBoxLayout(self.content)
+        self.layout.setSpacing(20)
+        self.layout.setContentsMargins(60, 40, 60, 20)
+
         self.initUI()
 
-    def initUI(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(60, 40, 60, 20)
+    def resizeEvent(self, event):
+        self.background.resize(self.size())
+        self.content.resize(self.size())
 
-        title = QLabel(f"Welcome to Phys Calc, {self.username}!")
+        if hasattr(self.parent(), 'settings_button'):
+            self.parent().settings_button.move(
+                self.width() - 60,
+                self.height() - 70
+            )
+
+        super().resizeEvent(event)
+
+
+    def initUI(self):
+        title = QLabel(f"Welcome to Phys Calc, {self.username}!", self.content)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         title.setStyleSheet("color: #4FC3F7; padding: 20px;")
-        layout.addWidget(title)
+        self.layout.addWidget(title)
 
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setStyleSheet("border: 1px solid #2A2A2A;")
-        layout.addWidget(separator)
+        self.layout.addWidget(separator)
 
         self.buttons = []
         button_labels = [
@@ -126,10 +84,10 @@ class MainMenu(QWidget):
                     background-color: #263646;
                 }
             """)
-            layout.addWidget(btn)
+            self.layout.addWidget(btn)
             self.buttons.append(btn)
 
-        layout.addStretch(1)
+        self.layout.addStretch(1)
 
         self.footer = QLabel(self.get_random_physics_fact())
         self.footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -142,15 +100,11 @@ class MainMenu(QWidget):
                 border-radius: 8px;
             }
         """)
-        layout.addWidget(self.footer)
+        self.layout.addWidget(self.footer)
 
         self.fact_timer = QTimer(self)
         self.fact_timer.timeout.connect(self.update_footer_fact)
         self.fact_timer.start(8000)
-
-    def resizeEvent(self, event):
-        self.background.resize(self.size())
-        super().resizeEvent(event)
 
     def get_random_physics_fact(self):
         facts = [
@@ -165,6 +119,8 @@ class MainMenu(QWidget):
 
     def update_footer_fact(self):
         self.footer.setText(self.get_random_physics_fact())
+
+
 
 class PhysicsCalculator(QMainWindow):
     def __init__(self, auth_manager):
@@ -184,8 +140,26 @@ class PhysicsCalculator(QMainWindow):
         self.electromagnetism_tab = ElectromagnetismTab()
         self.ai_tab = AIAssistantTab()
         self.global_chat_tab = GlobalChatTab(self.auth_manager)
+        self.user_settings_tab = UserSettingsTab(self.auth_manager, return_callback=self.return_to_menu)
 
         self.stacked_widget.addWidget(self.main_menu)
+        self.settings_button = QPushButton("⚙")
+        self.settings_button.setFixedSize(45, 45)
+        self.settings_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1E2A38;
+                color: #4FC3F7;
+                font-size: 20px;
+                border: 1px solid #4FC3F7;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #263646;
+            }
+        """)
+        self.settings_button.setParent(self.main_menu)
+        self.settings_button.raise_() 
+        self.settings_button.clicked.connect(lambda: self.switch_to_calculator(9))
         self.stacked_widget.addWidget(self.kinematics_tab)
         self.stacked_widget.addWidget(self.dynamics_tab)
         self.stacked_widget.addWidget(self.waves_tab)
@@ -194,6 +168,7 @@ class PhysicsCalculator(QMainWindow):
         self.stacked_widget.addWidget(self.electromagnetism_tab)
         self.stacked_widget.addWidget(self.ai_tab)
         self.stacked_widget.addWidget(self.global_chat_tab)
+        self.stacked_widget.addWidget(self.user_settings_tab)
 
         for i, btn in enumerate(self.main_menu.buttons):
             btn.clicked.connect(self.make_switch_callback(i + 1))
@@ -209,3 +184,5 @@ class PhysicsCalculator(QMainWindow):
 
     def return_to_menu(self):
         self.switch_to_calculator(0)
+
+    

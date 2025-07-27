@@ -159,3 +159,58 @@ class AuthManager:
             print(f"✅ Verification email sent to {email}")
         except Exception as e:
             print(f"❌ Failed to send email: {e}")
+
+    def get_user_details(self, user_id):
+        cursor = self.conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT username, email, totp_secret FROM users WHERE id = %s
+        """, (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            return None
+
+        uri = pyotp.TOTP(user["totp_secret"]).provisioning_uri(name=user["email"], issuer_name="Phys Calc")
+        return {
+            "username": user["username"],
+            "email": user["email"],
+            "totp_uri": uri
+        }
+
+    def verify_password(self, user_id, password):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        return bcrypt.checkpw(password.encode(), row[0].encode())
+
+    def update_user_details(self, user_id, username=None, email=None, password=None):
+        cursor = self.conn.cursor()
+        fields = []
+        values = []
+
+        if username:
+            fields.append("username = %s")
+            values.append(username)
+        if email:
+            fields.append("email = %s")
+            values.append(email)
+        if password:
+            hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            fields.append("password_hash = %s")
+            values.append(hashed)
+
+        if not fields:
+            return False
+
+        values.append(user_id)
+
+        try:
+            query = f"UPDATE users SET {', '.join(fields)} WHERE id = %s"
+            cursor.execute(query, values)
+            self.conn.commit()
+            return True
+        except Error as e:
+            print(f"Update error: {e}")
+            return False
+
