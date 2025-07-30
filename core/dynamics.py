@@ -75,13 +75,15 @@ class PhysicsSolver:
 
         # Validate and set input values
         for var, value in kwargs.items():
+            var = var.lower()
             if var not in self.solutions:
                 raise PhysicsError(
                     PhysicsErrorType.INVALID_INPUT,
                     f"Unknown variable '{var}' provided",
                     var
                 )
-            
+            if value is None:
+                continue  # skip unset inputs
             try:
                 float_value = float(value)
                 self._validate_input(var, float_value)

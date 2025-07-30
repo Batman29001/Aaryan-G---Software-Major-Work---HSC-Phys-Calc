@@ -227,14 +227,19 @@ class KinematicsTab(QWidget):
         
         # Get inputs and solve
         values = self.get_input_values()
-        result = solve_kinematics(**values)
+        try:
+            result = solve_kinematics(**values)
+        except Exception as e:
+            QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n{str(e)}")
+            self.result_display.setText("❌ Calculation failed.")
+            return
         self.last_result = result  # Store for plotting
         
         # Format results (handle lists for ± solutions)
         result_text = "📊 Results:\n"
         for var, val in result.items():
             if val is None:
-                result_text += f"• {var}: ❓ (missing data)\n"
+                result_text += f"• {var}: (missing data)\n"
             elif isinstance(val, list):
                 result_text += f"• {var}: {' or '.join(f'{x:.3f}' for x in val)}\n"
             else:

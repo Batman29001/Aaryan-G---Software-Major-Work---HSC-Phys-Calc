@@ -19,15 +19,26 @@ class MainMenu(QWidget):
         super().__init__(parent)
         self.username = username
 
-        # Create a background and overlay layout
+        # Background layer
         self.background = ParticleBackground(self)
+        self.background.lower()
 
+        # Main layout on self (MainMenu widget)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Content layer on top of background
         self.content = QWidget(self)
+        self.content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.content.setStyleSheet("background: transparent;")  # Let background show through
+
         self.layout = QVBoxLayout(self.content)
         self.layout.setSpacing(20)
         self.layout.setContentsMargins(60, 40, 60, 20)
 
+        self.main_layout.addWidget(self.content)  # Attach content to MainMenu layout
         self.initUI()
+
 
     def resizeEvent(self, event):
         self.background.resize(self.size())
@@ -113,7 +124,10 @@ class MainMenu(QWidget):
             "Quantum entanglement defies distance.",
             "Time slows in stronger gravity fields.",
             "Superconductors conduct with no resistance.",
-            "The universe expands faster every day."
+            "The universe expands faster every day.",
+            "Mitochondria is the powerhouse of the cell", 
+            "Newton was celibate his whole life he got no play. Kinda like you lmao  ", 
+            "nigger"
         ]
         return random.choice(facts)
 

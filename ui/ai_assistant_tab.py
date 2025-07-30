@@ -205,6 +205,9 @@ class AIAssistantTab(QWidget):
             self.worker.wait()
 
         try:
+            if self.worker and self.worker.isRunning():
+                self.worker.quit()
+                self.worker.wait()
             self.response_display.setPlainText("Processing...")
             self.worker = AIWorker(self.mistral, question)
             self.worker.finished.connect(self.handle_response)
@@ -223,10 +226,17 @@ class AIAssistantTab(QWidget):
         self.worker = None
 
     def closeEvent(self, event):
-        if self.worker and self.worker.isRunning():
-            self.worker.quit()
-            self.worker.wait()
-        if self.model_loader and self.model_loader.isRunning():
-            self.model_loader.quit()
-            self.model_loader.wait()
+        try:
+            if self.worker and self.worker.isRunning():
+                self.worker.quit()
+                self.worker.wait()
+                self.worker = None
+
+            if self.model_loader and self.model_loader.isRunning():
+                self.model_loader.quit()
+                self.model_loader.wait()
+        except Exception as e:
+            print(f"Error during closeEvent: {e}")
         event.accept()
+
+

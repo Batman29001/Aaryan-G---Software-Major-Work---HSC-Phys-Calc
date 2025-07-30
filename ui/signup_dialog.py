@@ -117,6 +117,6 @@ class SignupDialog(QDialog):
             qr_dialog.exec()
 
             self.signup_btn.setDisabled(True)
-            self.signup_btn.setText("Account created! Check your Email to verify your account ✅")
+            self.signup_btn.setText("Check your Email to verify your account ✅")
 
 
