@@ -125,9 +125,8 @@ class MainMenu(QWidget):
             "Time slows in stronger gravity fields.",
             "Superconductors conduct with no resistance.",
             "The universe expands faster every day.",
-            "Mitochondria is the powerhouse of the cell", 
-            "Newton was celibate his whole life he got no play. Kinda like you lmao  ", 
-            "nigger"
+            "Mitochondria is the powerhouse of the cell.",
+            "Every 60 seconds, a minute passes on earth."
         ]
         return random.choice(facts)
 

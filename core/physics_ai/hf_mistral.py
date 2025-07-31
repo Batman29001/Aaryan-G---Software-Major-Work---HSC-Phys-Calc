@@ -16,7 +16,7 @@ Now solve this:"""
 
     def analyze_question(self, question: str) -> str:
         try:
-            prompt = f"{self.system_prompt}\n\nQuestion: {question}"
+            prompt = f"Question: {question}"
             # Call the /predict API with the prompt as 'question' input
             response = self.client.predict(prompt, api_name="/predict")
             return response
