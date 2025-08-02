@@ -191,23 +191,23 @@ class ForceMomentumTab(BasePhysicsTab):
             'm': ["kg", "g", "lb"],
             'a': ["m/s²", "ft/s²"],
             'p': ["kg·m/s", "N·s"],
-            'v': ["m/s", "km/h", "ft/s"],
+            'vf': ["m/s", "km/h", "ft/s"],  # match new key
             't': ["s", "ms", "min"]
         }
-        
+
         symbols = {
             'F': "F (Force)",
             'm': "m (Mass)",
             'a': "a (Acceleration)",
             'p': "p (Momentum)",
-            'v': "v (Velocity)",
+            'vf': "v (Final Velocity)",  # renamed here
             't': "t (Time)"
         }
         
         self.inputs = {}
         self.unit_combos = {}
         
-        for var in ['F', 'm', 'a', 'p', 'v', 't']:
+        for var in ['F', 'm', 'a', 'p', 'vf', 't']:
             self.inputs[var] = QLineEdit()
             unit_combo = QComboBox()
             unit_combo.addItems(units.get(var, [""]))

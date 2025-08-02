@@ -19,7 +19,7 @@ class PhysicsError(Exception):
         self.variable = variable
         super().__init__(f"{message} (Variable: {variable})" if variable else message)
 
-class PhysicsSolver:
+class DynamicsSolver:
     def __init__(self):
         self.g = 9.81  # Standard gravity (m/s²)
         self.solutions = {}
@@ -75,7 +75,6 @@ class PhysicsSolver:
 
         # Validate and set input values
         for var, value in kwargs.items():
-            var = var.lower()
             if var not in self.solutions:
                 raise PhysicsError(
                     PhysicsErrorType.INVALID_INPUT,
@@ -271,5 +270,5 @@ class PhysicsSolver:
 
 def solve_dynamics(**kwargs) -> Dict[str, float]:
     """Public interface for solving dynamics problems"""
-    solver = PhysicsSolver()
+    solver = DynamicsSolver()
     return solver.solve(**kwargs)
