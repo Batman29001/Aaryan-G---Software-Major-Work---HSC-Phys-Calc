@@ -50,6 +50,7 @@ Directory structure:
 └── main.py 
 └── verify_email.py  
 └── verify_install.py
+└── test.py
 └── verify_server.py
 └── .env
  

@@ -32,7 +32,7 @@ class BaseElectromagnetismTab(QWidget):
         self.create_input_fields(input_layout)
         
         # Buttons
-        self.calculate_btn = QPushButton("⚡ Calculate")
+        self.calculate_btn = QPushButton("🚀 Calculate")
         self.clear_btn = QPushButton("🔄 Reset")
         self.plot_btn = QPushButton("📊 Plot")
         self.theme_btn = QPushButton("🌙 Toggle Plot Theme")

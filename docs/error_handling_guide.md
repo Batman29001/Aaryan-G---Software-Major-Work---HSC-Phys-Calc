@@ -1,4 +1,4 @@
-# Error Handling and Input Validation Guide
+# Error Handling and Input Validation Guide - I got ts from somewhere so u basically just use this in ur things
 
 ## Overview
 
